@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PDV Desktop - Kokito's Pizzaria</title>
+  <link rel="stylesheet" href="../style.css">
+  <style>
+    .desktop-container { max-width: 700px; margin: 0 auto; padding: 20px; }
+    .desktop-card { background: #fff; border-radius: 14px; padding: 30px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); border: 1px solid rgba(0,0,0,0.04); margin-bottom: 20px; }
+    .desktop-card h2 { margin-bottom: 16px; font-size: 1.3rem; color: var(--cor-secundaria); }
+    .desktop-card p, .desktop-card li { color: #555; font-size: 0.9rem; line-height: 1.6; }
+    .desktop-card ul { padding-left: 20px; margin: 12px 0; }
+    .desktop-card li { margin-bottom: 6px; }
+    .download-area { text-align: center; padding: 40px 20px; }
+    .btn-download { display: inline-flex; align-items: center; gap: 10px; padding: 16px 36px; font-size: 1.1rem; font-weight: 700; border-radius: 12px; cursor: pointer; min-height: 56px; background: linear-gradient(135deg, #2c3e50, #1a252f); color: #fff; border: none; transition: all 0.25s; }
+    .btn-download:hover { transform: scale(1.03); box-shadow: 0 6px 20px rgba(44,62,80,0.3); }
+    .btn-download:active { transform: scale(0.97); }
+    .btn-download small { font-weight: 400; font-size: 0.75rem; opacity: 0.7; }
+    .btn-download .icone { font-size: 1.6rem; }
+    .passo { display: flex; gap: 14px; margin-bottom: 16px; align-items: flex-start; }
+    .passo-num { width: 32px; height: 32px; border-radius: 50%; background: var(--cor-primaria); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.9rem; flex-shrink: 0; }
+    .requisito { display: inline-block; padding: 4px 12px; border-radius: 6px; font-size: 0.82rem; font-weight: 500; }
+    .requisito.ok { background: #e8f5e9; color: #2e7d32; }
+    .requisito.falta { background: #fff3e0; color: #e65100; }
+    @media (max-width: 639px) {
+      .desktop-container { padding: 16px; }
+      .desktop-card { padding: 20px; }
+    }
+  </style>
+</head>
+<body class="admin-body">
+  <div id="sidebar"></div>
+  <div class="admin-content">
+    <div class="admin-header">
+      <h1>💻 PDV Desktop para Windows</h1>
+    </div>
+    <div class="desktop-container">
+      <div class="desktop-card download-area">
+        <h2>📦 Baixar PDV Desktop</h2>
+        <p style="margin-bottom:20px">Versão para Windows — receba pedidos direto no seu computador sem precisar abrir o navegador.</p>
+        <button class="btn-download" onclick="baixarPDV()" id="btn-download">
+          <span class="icone">⬇️</span>
+          <span>Baixar PDV para Windows<br><small>~30 MB • ZIP</small></span>
+        </button>
+        <div id="download-msg" style="margin-top:12px;font-size:0.85rem;color:#666"></div>
+      </div>
+
+      <div class="desktop-card">
+        <h2>📋 Como instalar</h2>
+        <div class="passo">
+          <div class="passo-num">1</div>
+          <div><strong>Baixe o arquivo ZIP</strong> clicando no botão acima.</div>
+        </div>
+        <div class="passo">
+          <div class="passo-num">2</div>
+          <div><strong>Extraia</strong> o conteúdo para uma pasta (ex: C:\PDV-Kokitos).</div>
+        </div>
+        <div class="passo">
+          <div class="passo-num">3</div>
+          <div><strong>Execute o arquivo</strong> <code>iniciar-pdv.bat</code> como Administrador na primeira vez.</div>
+        </div>
+        <div class="passo">
+          <div class="passo-num">4</div>
+          <div>Pronto! O PDV vai abrir em uma janela própria 🎉</div>
+        </div>
+      </div>
+
+      <div class="desktop-card">
+        <h2>✅ Requisitos</h2>
+        <ul>
+          <li>Windows 10 ou superior</li>
+          <li>Node.js 18+ instalado</li>
+          <li>Impressora térmica configurada (opcional)</li>
+        </ul>
+        <p>Não tem Node.js? <a href="https://nodejs.org" target="_blank" rel="noopener">Baixe aqui</a> e instale.</p>
+      </div>
+
+      <div class="desktop-card">
+        <h2>🔧 Funcionalidades</h2>
+        <ul>
+          <li>🪟 Janela nativa do Windows — sem precisar de navegador</li>
+          <li>🖨️ Impressão direta na impressora do Windows</li>
+          <li>🔔 Notificações no sistema quando chegar pedido novo</li>
+          <li>🗨️ Minimiza para a bandeja do sistema</li>
+          <li>🔄 Auto-atualização dos pedidos a cada 5 segundos</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <script src="admin.js"></script>
+  <script>
+    function baixarPDV() {
+      var btn = document.getElementById('btn-download');
+      var msg = document.getElementById('download-msg');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="icone">⏳</span><span>Gerando download...</span>';
+      msg.textContent = 'Preparando o arquivo, aguarde...';
+
+      fetch('/api/pdv-desktop/download')
+        .then(function(r) {
+          if (!r.ok) throw new Error('Erro ao gerar download');
+          return r.blob();
+        })
+        .then(function(blob) {
+          var url = URL.createObjectURL(blob);
+          var a = document.createElement('a');
+          a.href = url;
+          a.download = 'PDV-Kokitos-Windows.zip';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          btn.innerHTML = '<span class="icone">✅</span><span>Download concluído!</span>';
+          msg.textContent = 'Extraia o ZIP e execute iniciar-pdv.bat';
+          setTimeout(function() {
+            btn.disabled = false;
+            btn.innerHTML = '<span class="icone">⬇️</span><span>Baixar PDV para Windows<br><small>~30 MB • ZIP</small></span>';
+            msg.textContent = '';
+          }, 5000);
+        })
+        .catch(function(err) {
+          btn.disabled = false;
+          btn.innerHTML = '<span class="icone">⬇️</span><span>Baixar PDV para Windows<br><small>~30 MB • ZIP</small></span>';
+          msg.textContent = 'Erro: ' + err.message + '. Tente novamente.';
+        });
+    }
+  </script>
+</body>
+</html>

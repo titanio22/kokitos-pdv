@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Clientes - Kokito's Pizzaria</title>
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body class="admin-body">
+  <div id="sidebar"></div>
+  <div class="admin-content">
+    <div class="admin-header">
+      <h1>👥 Clientes Cadastrados</h1>
+    </div>
+
+    <div class="card">
+      <div id="clientes-table-container">
+        <p style="text-align:center;padding:40px;color:#999">Carregando...</p>
+      </div>
+    </div>
+  </div>
+
+  <script src="admin.js"></script>
+  <script>
+    function carregarClientes() {
+      const container = document.getElementById('clientes-table-container');
+      fetch('/api/clientes')
+        .then(r => r.json())
+        .then(clientes => {
+          if (clientes.length === 0) {
+            container.innerHTML = '<div class="empty-state"><p>Nenhum cliente cadastrado ainda.</p></div>';
+            return;
+          }
+          let html = '<table class="tabela"><thead><tr><th>ID</th><th>Login</th><th>Nome</th><th>Telefone</th><th>Endereço</th><th>Ponto Ref.</th><th>Cadastro</th><th>Ação</th></tr></thead><tbody>';
+          clientes.forEach(c => {
+            html += '<tr>' +
+              '<td>' + c.id + '</td>' +
+              '<td>' + c.login + '</td>' +
+              '<td>' + c.nome + '</td>' +
+              '<td>' + c.telefone + '</td>' +
+              '<td>' + c.endereco + '</td>' +
+              '<td>' + (c.ponto_referencia || '-') + '</td>' +
+              '<td>' + c.criado_em + '</td>' +
+              '<td><button class="btn btn-danger btn-sm" onclick="removerCliente(' + c.id + ')">Excluir</button></td>' +
+              '</tr>';
+          });
+          html += '</tbody></table>';
+          container.innerHTML = html;
+        })
+        .catch(() => {
+          container.innerHTML = '<div class="empty-state"><p>Erro ao carregar clientes.</p></div>';
+        });
+    }
+
+    function removerCliente(id) {
+      if (!confirm('Tem certeza que deseja excluir este cliente?')) return;
+      fetch('/api/clientes/' + id, { method: 'DELETE' })
+        .then(r => r.json())
+        .then(data => {
+          if (data.mensagem) {
+            carregarClientes();
+          } else {
+            alert('Erro: ' + (data.erro || 'Erro desconhecido'));
+          }
+        })
+        .catch(() => alert('Erro ao conectar com o servidor'));
+    }
+
+    carregarClientes();
+  </script>
+</body>
+</html>

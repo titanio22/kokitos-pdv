@@ -1,0 +1,19 @@
+{
+  "name": "delivery-food-system",
+  "version": "1.0.0",
+  "description": "Sistema completo de cardápio + chatbot + gestão para delivery",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "seed": "node seed.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "sql.js": "^1.11.0",
+    "cors": "^2.8.5",
+    "express": "^4.18.2"
+  }
+}

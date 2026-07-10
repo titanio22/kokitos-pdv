@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Categorias - Kokito's Pizzaria</title>
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body class="admin-body">
+  <div id="sidebar"></div>
+  <div class="admin-content">
+    <div class="admin-header">
+      <h1>📂 Categorias</h1>
+      <button class="btn btn-primary" onclick="abrirModal()">+ Nova Categoria</button>
+    </div>
+    <div class="card">
+      <table class="tabela" id="tabela-categorias">
+        <thead><tr><th>Ícone</th><th>Nome</th><th>Descrição</th><th>Ordem</th><th>Ativo</th><th>Ações</th></tr></thead>
+        <tbody id="categorias-body"></tbody>
+      </table>
+      <div id="empty-categorias" class="empty-state" style="display:none"><p>Nenhuma categoria cadastrada</p></div>
+    </div>
+  </div>
+
+  <div id="modal-categoria" class="modal" style="display:none">
+    <div class="modal-content">
+      <span class="fechar" onclick="fecharModal()">&times;</span>
+      <h2 id="modal-titulo">Nova Categoria</h2>
+      <form onsubmit="salvarCategoria(event)">
+        <input type="hidden" id="edit-id">
+        <div class="form-group"><label>Nome *</label><input type="text" id="edit-nome" required></div>
+        <div class="form-group"><label>Descrição</label><input type="text" id="edit-descricao"></div>
+        <div class="form-row">
+          <div class="form-group"><label>Ícone (emoji)</label><input type="text" id="edit-icone" placeholder="🍕" maxlength="10"></div>
+          <div class="form-group"><label>Ordem</label><input type="number" id="edit-ordem" value="0"></div>
+        </div>
+        <div class="form-group"><label><input type="checkbox" id="edit-ativo" checked> Ativo</label></div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">Salvar</button>
+          <button type="button" class="btn" onclick="fecharModal()">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="admin.js"></script>
+  <script>
+    function carregarCategorias() {
+      fetch('/api/categorias').then(r => r.json()).then(data => {
+        const tbody = document.getElementById('categorias-body');
+        const empty = document.getElementById('empty-categorias');
+        tbody.innerHTML = '';
+        if (data.length === 0) { empty.style.display = 'block'; return; }
+        empty.style.display = 'none';
+        data.forEach(c => {
+          tbody.innerHTML += `<tr>
+            <td style="font-size:1.5rem">${c.icone || '📋'}</td>
+            <td>${c.nome}</td>
+            <td>${c.descricao || '-'}</td>
+            <td>${c.ordem}</td>
+            <td>${c.ativo ? '✅ Sim' : '❌ Não'}</td>
+            <td>
+              <button class="btn btn-sm btn-primary" onclick="editarCategoria(${c.id})">✏️</button>
+              <button class="btn btn-sm btn-danger" onclick="excluirCategoria(${c.id})">🗑️</button>
+            </td>
+          </tr>`;
+        });
+      });
+    }
+
+    let categoriaEditando = null;
+
+    function abrirModal(categoria) {
+      document.getElementById('modal-titulo').textContent = categoria ? 'Editar Categoria' : 'Nova Categoria';
+      document.getElementById('edit-id').value = categoria ? categoria.id : '';
+      document.getElementById('edit-nome').value = categoria ? categoria.nome : '';
+      document.getElementById('edit-descricao').value = categoria ? (categoria.descricao || '') : '';
+      document.getElementById('edit-icone').value = categoria ? (categoria.icone || '') : '';
+      document.getElementById('edit-ordem').value = categoria ? categoria.ordem : 0;
+      document.getElementById('edit-ativo').checked = categoria ? !!categoria.ativo : true;
+      categoriaEditando = categoria || null;
+      document.getElementById('modal-categoria').style.display = 'flex';
+    }
+
+    function fecharModal() { document.getElementById('modal-categoria').style.display = 'none'; }
+
+    function editarCategoria(id) {
+      fetch('/api/categorias/' + id).then(r => r.json()).then(c => abrirModal(c));
+    }
+
+    function salvarCategoria(e) {
+      e.preventDefault();
+      const data = {
+        nome: document.getElementById('edit-nome').value,
+        descricao: document.getElementById('edit-descricao').value,
+        icone: document.getElementById('edit-icone').value,
+        ordem: parseInt(document.getElementById('edit-ordem').value) || 0,
+        ativo: document.getElementById('edit-ativo').checked ? 1 : 0
+      };
+      const id = document.getElementById('edit-id').value;
+      const url = id ? `/api/categorias/${id}` : '/api/categorias';
+      const method = id ? 'PUT' : 'POST';
+      fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
+        .then(r => r.json()).then(() => { fecharModal(); carregarCategorias(); });
+    }
+
+    function excluirCategoria(id) {
+      if (!confirm('Tem certeza que deseja excluir esta categoria?')) return;
+      fetch(`/api/categorias/${id}`, { method: 'DELETE' }).then(() => carregarCategorias());
+    }
+
+    carregarCategorias();
+  </script>
+</body>
+</html>

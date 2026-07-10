@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chatbot - Kokito's Pizzaria</title>
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body class="admin-body">
+  <div id="sidebar"></div>
+  <div class="admin-content">
+    <div class="admin-header">
+      <h1>🤖 Chatbot - Respostas</h1>
+      <button class="btn btn-primary" onclick="abrirModal()">+ Nova Resposta</button>
+    </div>
+    <div class="card">
+      <p style="margin-bottom:15px;color:#666;font-size:0.9rem">
+        O chatbot responde automaticamente com base em palavras-chave. 
+        Use <code>@chave_da_configuracao</code> para inserir valores das configurações dinamicamente.
+        Use <code>@chave_texto</code> para converter 1/0 em sim/não.
+      </p>
+      <table class="tabela" id="tabela-respostas">
+        <thead><tr><th>Palavras-chave</th><th>Resposta</th><th>Prioridade</th><th>Ativo</th><th>Ações</th></tr></thead>
+        <tbody id="respostas-body"></tbody>
+      </table>
+      <div id="empty-respostas" class="empty-state" style="display:none"><p>Nenhuma resposta cadastrada</p></div>
+    </div>
+  </div>
+
+  <div id="modal-resposta" class="modal" style="display:none">
+    <div class="modal-content">
+      <span class="fechar" onclick="fecharModal()">&times;</span>
+      <h2 id="modal-titulo">Nova Resposta</h2>
+      <form onsubmit="salvarResposta(event)">
+        <input type="hidden" id="edit-id">
+        <div class="form-group">
+          <label>Palavras-chave *</label>
+          <input type="text" id="edit-palavras" required placeholder="olá,oi,bom dia">
+          <small style="color:#999">Separe com vírgulas. O chatbot responde quando encontrar qualquer uma.</small>
+        </div>
+        <div class="form-group">
+          <label>Resposta *</label>
+          <textarea id="edit-resposta" rows="3" required placeholder="Olá! Como posso ajudar?"></textarea>
+          <small style="color:#999">Use @chave para inserir valores das configurações.</small>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Prioridade (maior =优先)</label><input type="number" id="edit-prioridade" value="0"></div>
+          <div class="form-group" style="display:flex;align-items:center;padding-top:24px">
+            <label><input type="checkbox" id="edit-ativo" checked> Ativo</label>
+          </div>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">Salvar</button>
+          <button type="button" class="btn" onclick="fecharModal()">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="admin.js"></script>
+  <script>
+    function carregarRespostas() {
+      fetch('/api/chatbot/respostas').then(r => r.json()).then(data => {
+        const tbody = document.getElementById('respostas-body');
+        const empty = document.getElementById('empty-respostas');
+        tbody.innerHTML = '';
+        if (data.length === 0) { empty.style.display = 'block'; return; }
+        empty.style.display = 'none';
+        data.forEach(r => {
+          tbody.innerHTML += `<tr>
+            <td style="max-width:200px;word-break:break-all">${r.palavras_chave}</td>
+            <td style="max-width:250px;word-break:break-all">${r.resposta.substring(0, 80)}${r.resposta.length > 80 ? '...' : ''}</td>
+            <td>${r.prioridade}</td>
+            <td>${r.ativo ? '✅ Sim' : '❌ Não'}</td>
+            <td>
+              <button class="btn btn-sm btn-primary" onclick="editarResposta(${r.id})">✏️</button>
+              <button class="btn btn-sm btn-danger" onclick="excluirResposta(${r.id})">🗑️</button>
+            </td>
+          </tr>`;
+        });
+      });
+    }
+
+    function abrirModal(resposta) {
+      document.getElementById('modal-titulo').textContent = resposta ? 'Editar Resposta' : 'Nova Resposta';
+      document.getElementById('edit-id').value = resposta ? resposta.id : '';
+      document.getElementById('edit-palavras').value = resposta ? resposta.palavras_chave : '';
+      document.getElementById('edit-resposta').value = resposta ? resposta.resposta : '';
+      document.getElementById('edit-prioridade').value = resposta ? resposta.prioridade : 0;
+      document.getElementById('edit-ativo').checked = resposta ? !!resposta.ativo : true;
+      document.getElementById('modal-resposta').style.display = 'flex';
+    }
+
+    function fecharModal() { document.getElementById('modal-resposta').style.display = 'none'; }
+
+    function editarResposta(id) {
+      fetch('/api/chatbot/respostas').then(r => r.json()).then(data => {
+        const r = data.find(x => x.id === id);
+        if (r) abrirModal(r);
+      });
+    }
+
+    function salvarResposta(e) {
+      e.preventDefault();
+      const data = {
+        palavras_chave: document.getElementById('edit-palavras').value,
+        resposta: document.getElementById('edit-resposta').value,
+        prioridade: parseInt(document.getElementById('edit-prioridade').value) || 0,
+        ativo: document.getElementById('edit-ativo').checked ? 1 : 0
+      };
+      const id = document.getElementById('edit-id').value;
+      const url = id ? `/api/chatbot/respostas/${id}` : '/api/chatbot/respostas';
+      const method = id ? 'PUT' : 'POST';
+      fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
+        .then(r => r.json()).then(() => { fecharModal(); carregarRespostas(); });
+    }
+
+    function excluirResposta(id) {
+      if (!confirm('Tem certeza que deseja excluir esta resposta?')) return;
+      fetch(`/api/chatbot/respostas/${id}`, { method: 'DELETE' }).then(() => carregarRespostas());
+    }
+
+    carregarRespostas();
+  </script>
+</body>
+</html>

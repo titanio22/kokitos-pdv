@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Configurações - Kokito's Pizzaria</title>
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body class="admin-body">
+  <div id="sidebar"></div>
+  <div class="admin-content">
+    <div class="admin-header">
+      <h1>⚙️ Configurações</h1>
+      <button class="btn btn-primary" onclick="salvarTodas()">💾 Salvar Todas</button>
+    </div>
+    <div class="card">
+      <p style="margin-bottom:20px;color:#666;font-size:0.9rem">
+        Todas as configurações são aplicadas em tempo real no cardápio e no chatbot.
+      </p>
+      <form id="config-form"></form>
+    </div>
+
+    <div class="card" style="margin-top:20px">
+      <h2>🖨️ Impressora Térmica</h2>
+      <p style="margin-bottom:16px;color:#666;font-size:0.85rem">Configure a impressora não fiscal para impressão automática dos pedidos.</p>
+      <div class="form-group">
+        <label>Impressora</label>
+        <select id="cfg-impressora-nome" style="width:100%;max-width:400px;padding:10px;border:2px solid #ddd;border-radius:8px;font-size:0.9rem">
+          <option value="">Selecione uma impressora...</option>
+        </select>
+        <small style="color:#999">Deixe vazio para usar a impressora padrão do sistema</small>
+      </div>
+      <div class="form-group">
+        <label>Tamanho do papel</label>
+        <select id="cfg-impressora-papel" style="padding:10px;border:2px solid #ddd;border-radius:8px;font-size:0.9rem">
+          <option value="80mm">80mm</option>
+          <option value="58mm">58mm</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>
+          <input type="checkbox" id="cfg-impressora-auto" style="margin-right:8px">
+          Imprimir automaticamente ao receber novo pedido
+        </label>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap">
+        <button class="btn btn-primary" onclick="salvarConfigImpressora()">💾 Salvar Impressora</button>
+        <button class="btn btn-secondary" onclick="testarImpressora()">🧪 Testar Impressão</button>
+        <button class="btn btn-secondary" onclick="atualizarListaImpressoras()">🔄 Atualizar Lista</button>
+      </div>
+      <div id="printer-status" style="margin-top:12px;font-size:0.85rem"></div>
+    </div>
+  </div>
+
+  <script src="admin.js"></script>
+  <script>
+    function carregarConfiguracoes() {
+      fetch('/api/configuracoes').then(r => r.json()).then(data => {
+        const form = document.getElementById('config-form');
+        form.innerHTML = '';
+        data.forEach(c => {
+          const div = document.createElement('div');
+          div.className = 'form-group';
+          div.innerHTML = `<label>${c.descricao || c.chave}</label>`;
+          const input = document.createElement('input');
+          input.type = c.tipo === 'numero' ? 'number' : c.tipo === 'booleano' ? 'checkbox' : 'text';
+          input.id = `cfg-${c.chave}`;
+          input.dataset.chave = c.chave;
+          if (c.tipo === 'booleano') {
+            input.checked = c.valor === '1';
+            const label = document.createElement('label');
+            label.style.marginLeft = '8px';
+            label.textContent = input.checked ? 'Sim' : 'Não';
+            input.onchange = () => { label.textContent = input.checked ? 'Sim' : 'Não'; };
+            div.appendChild(input);
+            div.appendChild(label);
+          } else {
+            input.value = c.valor;
+            input.step = c.tipo === 'numero' ? '0.01' : undefined;
+            input.style.width = c.chave === 'frase_destaque' ? '100%' : (c.tipo === 'numero' ? '150px' : '350px');
+            div.appendChild(input);
+          }
+          if (c.chave === 'cor_primaria' || c.chave === 'cor_secundaria') {
+            input.type = 'color';
+            input.style.width = '60px';
+            input.style.height = '40px';
+            input.style.padding = '2px';
+          }
+          form.appendChild(div);
+        });
+      });
+    }
+
+    function salvarTodas() {
+      const inputs = document.querySelectorAll('#config-form input');
+      const data = {};
+      let hasChanges = false;
+      inputs.forEach(input => {
+        const chave = input.dataset.chave;
+        if (input.type === 'checkbox') {
+          data[chave] = input.checked ? '1' : '0';
+        } else {
+          data[chave] = input.value;
+        }
+        hasChanges = true;
+      });
+      if (!hasChanges) return;
+      fetch('/api/configuracoes', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      }).then(r => r.json()).then(() => {
+        alert('Configurações salvas com sucesso!');
+      }).catch(() => alert('Erro ao salvar configurações'));
+    }
+
+    carregarConfiguracoes();
+    carregarConfigImpressora();
+
+    function mostrarStatusPrinter(msg, tipo) {
+      var el = document.getElementById('printer-status');
+      el.style.color = tipo === 'erro' ? '#e74c3c' : '#2ecc71';
+      el.textContent = msg;
+    }
+
+    function carregarConfigImpressora() {
+      fetch('/api/config/impressora')
+        .then(function(r) { return r.json(); })
+        .then(function(cfg) {
+          if (cfg.nome) document.getElementById('cfg-impressora-nome').value = cfg.nome;
+          if (cfg.papel) document.getElementById('cfg-impressora-papel').value = cfg.papel;
+          document.getElementById('cfg-impressora-auto').checked = cfg.automatico === '1';
+          atualizarListaImpressoras();
+        });
+    }
+
+    function atualizarListaImpressoras() {
+      var sel = document.getElementById('cfg-impressora-nome');
+      var valorAtual = sel.value;
+      if (window.electronPDV && window.electronPDV.listarImpressoras) {
+        window.electronPDV.listarImpressoras().then(function(impressoras) {
+          sel.innerHTML = '<option value="">Selecione uma impressora...</option>';
+          impressoras.forEach(function(imp) {
+            var opt = document.createElement('option');
+            opt.value = imp.name;
+            opt.textContent = imp.name + (imp.isDefault ? ' (Padrão)' : '');
+            sel.appendChild(opt);
+          });
+          if (valorAtual) sel.value = valorAtual;
+          mostrarStatusPrinter('✅ ' + impressoras.length + ' impressoras encontradas');
+        }).catch(function() {
+          mostrarStatusPrinter('⚠️ Não foi possível listar impressoras (modo web)', 'erro');
+        });
+      } else {
+        mostrarStatusPrinter('⚠️ Use o PDV Desktop para configurar impressora', 'erro');
+      }
+    }
+
+    function salvarConfigImpressora() {
+      var data = {
+        nome: document.getElementById('cfg-impressora-nome').value,
+        papel: document.getElementById('cfg-impressora-papel').value,
+        automatico: document.getElementById('cfg-impressora-auto').checked ? '1' : '0'
+      };
+      fetch('/api/config/impressora', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      }).then(function(r) { return r.json(); }).then(function() {
+        mostrarStatusPrinter('✅ Configurações da impressora salvas!');
+      });
+    }
+
+    function testarImpressora() {
+      var nome = document.getElementById('cfg-impressora-nome').value;
+      var papel = document.getElementById('cfg-impressora-papel').value;
+      if (!nome) { mostrarStatusPrinter('⚠️ Selecione uma impressora primeiro', 'erro'); return; }
+
+      if (window.electronPDV && window.electronPDV.imprimirDireto) {
+        var htmlTeste = '<html><head><meta charset="utf-8"><style>body{font-family:monospace;font-size:12px;padding:10px;text-align:center}hr{border:none;border-top:1px dashed #000}@page{margin:0}</style></head><body>';
+        htmlTeste += '<h2>🧪 Teste de Impressão</h2><hr>';
+        htmlTeste += '<p>Kokito\'s Pizzaria</p><p>Impressora: ' + nome + '</p>';
+        htmlTeste += '<p>Papel: ' + papel + '</p><hr>';
+        htmlTeste += '<p>Se você está lendo isso,<br>a impressora está configurada corretamente! ✅</p>';
+        htmlTeste += '<hr><p style="font-size:10px">' + new Date().toLocaleString() + '</p></body></html>';
+
+        fetch('/api/pdv/impressao-teste', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ html: htmlTeste, impressora: nome, papel: papel })
+        }).then(function(r) { return r.json(); }).then(function(data) {
+          window.electronPDV.imprimirDireto('/api/pdv/impressao-teste-conteudo/' + data.id, nome, papel)
+            .then(function(success) {
+              mostrarStatusPrinter(success ? '✅ Teste de impressão enviado!' : '❌ Falha na impressão');
+            });
+        });
+      } else {
+        mostrarStatusPrinter('⚠️ Use o PDV Desktop para testar impressão', 'erro');
+      }
+    }
+  </script>
+</body>
+</html>

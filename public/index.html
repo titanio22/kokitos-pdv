@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cardápio - Kokito's Pizzaria</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header id="header">
+    <div class="container">
+      <div class="header-content">
+        <div>
+          <h1 id="nome-empresa">Delícia Express</h1>
+          <p id="frase-destaque" class="frase-destaque">A melhor comida da região!</p>
+        </div>
+        <div class="header-contato">
+          <span id="header-telefone">📞 (11) 99999-8888</span>
+          <span id="header-horario">🕐 Seg-Sáb: 18h-23h</span>
+          <span id="user-info" class="user-info" onclick="abrirLogin()" style="cursor:pointer;font-weight:600">👤 Entrar / Cadastrar</span>
+          <span id="rastreio-link" style="cursor:pointer;font-weight:600;margin-left:12px;font-size:0.85rem" onclick="abrirRastreio()">📦 Rastrear Pedido</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <nav id="categorias-nav">
+    <div class="container" id="categorias-list"></div>
+  </nav>
+
+  <main class="container">
+    <div id="produtos-grid" class="produtos-grid"></div>
+  </main>
+
+  <div id="login-modal" class="modal">
+    <div class="modal-content" style="max-width:420px">
+      <span class="fechar" onclick="fecharModal('login-modal')">&times;</span>
+      <h2 id="login-titulo">👤 Entrar</h2>
+      <div id="login-form">
+        <div class="form-group"><label>Login</label><input type="text" id="input-login" placeholder="Seu login"></div>
+        <div class="form-group"><label>Senha</label><input type="password" id="input-senha" placeholder="Sua senha" onkeypress="if(event.key==='Enter') entrarCliente()"></div>
+        <button class="btn btn-primary" style="width:100%" onclick="entrarCliente()">Entrar</button>
+        <p style="text-align:center;margin-top:12px;font-size:0.85rem">Não tem conta? <a href="#" onclick="mostrarCadastro()" style="color:var(--cor-primaria)">Cadastre-se</a></p>
+      </div>
+      <div id="cadastro-form" style="display:none">
+        <div class="form-group"><label>Login *</label><input type="text" id="cad-login" placeholder="Escolha um login"></div>
+        <div class="form-group"><label>Senha *</label><input type="password" id="cad-senha" placeholder="Crie uma senha"></div>
+        <div class="form-group"><label>Nome completo *</label><input type="text" id="cad-nome" placeholder="Seu nome"></div>
+        <div class="form-group"><label>Telefone *</label><input type="tel" id="cad-telefone" placeholder="(11) 99999-8888"></div>
+        <div class="form-group"><label>Endereço *</label><input type="text" id="cad-endereco" placeholder="Rua, número, bairro"></div>
+        <div class="form-group"><label>Ponto de referência</label><input type="text" id="cad-ref" placeholder="Ex: Próximo ao mercado"></div>
+        <button class="btn btn-primary" style="width:100%" onclick="cadastrarCliente()">Cadastrar</button>
+        <p style="text-align:center;margin-top:12px;font-size:0.85rem">Já tem conta? <a href="#" onclick="mostrarLogin()" style="color:var(--cor-primaria)">Entrar</a></p>
+      </div>
+    </div>
+  </div>
+
+  <div id="carrinho-flutuante" class="carrinho-flutuante" onclick="abrirCarrinho()" style="display:none">
+    🛒<span id="carrinho-count">0</span>
+  </div>
+
+  <div id="carrinho-modal" class="modal">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <span class="fechar" onclick="fecharCarrinho()">&times;</span>
+      <h2>🛒 Seu Carrinho</h2>
+      <div id="carrinho-itens"></div>
+      <div class="carrinho-total">
+        <strong>Total: R$ <span id="carrinho-total">0,00</span></strong>
+      </div>
+      <button class="btn btn-primary" onclick="abrirCheckout()" id="btn-finalizar">Finalizar Pedido</button>
+    </div>
+  </div>
+
+  <div id="checkout-modal" class="modal">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <span class="fechar" onclick="fecharCheckout()">&times;</span>
+      <h2>📋 Finalizar Pedido</h2>
+
+      <div class="card" style="margin-bottom:16px;background:#fff3e0;border-radius:10px;padding:12px 16px">
+        <p style="font-weight:600;margin-bottom:6px;font-size:0.9rem">🏷️ Cupom de desconto</p>
+        <div style="display:flex;gap:8px">
+          <input type="text" id="cupom-input" placeholder="Digite o código" style="flex:1;text-transform:uppercase">
+          <button class="btn btn-sm btn-primary" onclick="validarCupom()">Validar</button>
+        </div>
+        <div id="cupom-info" style="display:none;margin-top:6px;font-size:0.85rem;color:#2e7d32"></div>
+      </div>
+      <div style="text-align:right;padding:8px 0 12px;border-top:2px solid #eee;margin-bottom:12px" id="checkout-total"></div>
+      <form id="checkout-form" onsubmit="enviarPedido(event)">
+        <input type="hidden" id="input-cliente-id">
+        <div class="form-group">
+          <label>Nome completo *</label>
+          <input type="text" id="input-nome" required>
+        </div>
+        <div class="form-group">
+          <label>Telefone *</label>
+          <input type="tel" id="input-telefone" required placeholder="(11) 99999-8888">
+        </div>
+        <div class="form-group">
+          <label>Endereço de entrega *</label>
+          <div style="display:flex;gap:8px;align-items:stretch">
+            <input type="text" id="input-endereco" required placeholder="Rua, número, bairro" style="flex:1">
+            <button type="button" class="btn btn-sm btn-secondary" id="btn-trocar-endereco" onclick="trocarEndereco()" style="white-space:nowrap">✏️ Trocar</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Ponto de referência</label>
+          <input type="text" id="input-ref" placeholder="Ex: Próximo ao mercado">
+        </div>
+        <div class="form-group">
+          <label>Observação</label>
+          <textarea id="input-observacao" rows="2" placeholder="Ex: Sem cebola, ponto da carne..."></textarea>
+        </div>
+        <div id="form-pagamento" class="form-group">
+          <label>Forma de pagamento</label>
+          <div id="opcoes-pagamento" class="opcoes-pagamento"></div>
+        </div>
+        <div id="pix-info" class="pix-info" style="display:none">
+          <p>PIX: <strong id="pix-chave">11999998888</strong></p>
+        </div>
+        <div id="troco-area" class="form-group" style="display:none">
+          <label>Valor recebido (R$)</label>
+          <input type="text" id="input-troco" placeholder="Ex: 50,00">
+          <small style="color:#666">Se informar o valor, calculamos o troco</small>
+          <div id="troco-resultado" style="display:none;margin-top:6px;font-weight:700;color:#2e7d32"></div>
+        </div>
+        <div id="cartao-tipo-area" class="form-group" style="display:none">
+          <label>Tipo de cartão</label>
+          <div class="opcoes-pagamento" id="opcoes-cartao">
+            <div class="opcao-pagamento" onclick="selecionarTipoCartao('credito', this)">💳 Crédito</div>
+            <div class="opcao-pagamento" onclick="selecionarTipoCartao('debito', this)">💳 Débito</div>
+            <div class="opcao-pagamento" onclick="selecionarTipoCartao('voucher', this)">🎫 Voucher</div>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary" id="btn-confirmar-pedido">✅ Confirmar Pedido</button>
+      </form>
+    </div>
+  </div>
+
+  <div id="pizza-modal" class="modal">
+    <div class="modal-content modal-pizza">
+      <span class="fechar" onclick="fecharModalPizza()">&times;</span>
+      <h2>🍕 Monte sua Pizza</h2>
+      <p style="margin-bottom:6px"><strong id="pizza-tamanho-label">Tamanho</strong></p>
+      <div id="pizza-bordas-section" style="margin-bottom:12px;display:none">
+        <p style="font-size:0.85rem;font-weight:600;color:#555;margin-bottom:6px">Borda Recheada:</p>
+        <div id="pizza-bordas-grid" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+      </div>
+      <p style="font-size:0.9rem;color:#666" id="pizza-max-sabores">Escolha até 4 sabores</p>
+      <p style="font-size:0.9rem;color:#666;margin-bottom:12px">Selecionados: <span id="pizza-contador">0/0</span></p>
+      <div id="pizza-sabores-grid" class="pizza-sabores-grid"></div>
+
+      <div class="pizza-footer">
+        <span class="pizza-preco-final" id="pizza-preco-total">R$ 0,00</span>
+        <button class="btn btn-primary" onclick="adicionarPizzaAoCarrinho()">Adicionar ao Carrinho</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="pedido-confirmado-modal" class="modal">
+    <div class="modal-content modal-sucesso">
+      <span class="fechar" onclick="this.closest('.modal').style.display='none'">&times;</span>
+      <div class="sucesso-icone">✅</div>
+      <h2>Pedido Confirmado!</h2>
+      <p id="pedido-numero"></p>
+      <p>Em breve entraremos em contato para confirmar.</p>
+      <p style="font-size:0.85rem;margin-top:8px">📦 <a href="#" id="pedido-link-rastreio" onclick="fecharModal('pedido-confirmado-modal');abrirRastreio();" style="color:var(--cor-primaria)">Acompanhar Pedido</a></p>
+      <button class="btn btn-primary" onclick="this.closest('.modal').style.display='none'">Continuar</button>
+    </div>
+  </div>
+
+  <div id="rastreio-modal" class="modal">
+    <div class="modal-content" onclick="event.stopPropagation()" style="max-width:600px">
+      <span class="fechar" onclick="fecharRastreio()">&times;</span>
+      <h2>📦 Rastrear Pedido</h2>
+
+      <div id="rastreio-login">
+        <p style="margin-bottom:12px">Consulte seus pedidos:</p>
+        <div style="display:flex;gap:8px;margin-bottom:12px">
+          <input type="tel" id="rastreio-telefone" placeholder="Digite seu telefone" style="flex:1">
+          <button class="btn btn-primary" onclick="buscarPedidosRastreio()">Buscar</button>
+        </div>
+        <div id="rastreio-resultado"></div>
+      </div>
+
+      <div id="rastreio-meus-pedidos" style="display:none">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <h3 style="margin:0">Meus Pedidos</h3>
+          <button class="btn btn-sm btn-secondary" onclick="voltarRastreio()">🔍 Buscar outro</button>
+        </div>
+        <div style="display:flex;gap:6px;margin-bottom:12px;border-bottom:2px solid #eee">
+          <button id="rastreio-tab-ativos" class="rastreio-tab ativo" onclick="rastreioTabAtivos()">🔄 Em Andamento</button>
+          <button id="rastreio-tab-anteriores" class="rastreio-tab" onclick="rastreioTabAnteriores()">📋 Pedidos Anteriores</button>
+        </div>
+        <div id="rastreio-pedidos-list"></div>
+        <div id="rastreio-pedidos-anteriores-list" style="display:none"></div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <div class="container">
+      <p id="footer-info">Delícia Express - Todos os direitos reservados</p>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

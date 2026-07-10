@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cupons - Kokito's Pizzaria</title>
+  <link rel="stylesheet" href="../style.css">
+  <style>
+    .cupom-card { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid #eee; }
+    .cupom-card:hover { background: #f8f9fa; }
+    .cupom-actions { display: flex; gap: 6px; }
+    .tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
+    .tag-verde { background: #e8f5e9; color: #2e7d32; }
+    .tag-vermelha { background: #ffebee; color: #c62828; }
+    .tag-azul { background: #e3f2fd; color: #1565c0; }
+  </style>
+</head>
+<body class="admin-body">
+  <div id="sidebar"></div>
+  <div class="admin-content">
+    <div class="admin-header">
+      <h1>🏷️ Cupons de Desconto</h1>
+      <button class="btn btn-primary" onclick="abrirModal()">+ Novo Cupom</button>
+    </div>
+    <div class="card">
+      <div id="cupons-list"><p style="text-align:center;padding:40px;color:#999">Carregando...</p></div>
+    </div>
+  </div>
+
+  <div id="modal-cupom" class="modal" style="display:none">
+    <div class="modal-content">
+      <span class="fechar" onclick="fecharModal('modal-cupom')">&times;</span>
+      <h2 id="modal-titulo">Novo Cupom</h2>
+      <form onsubmit="event.preventDefault();salvarCupom()">
+        <input type="hidden" id="edit-id">
+        <div class="form-group"><label>Código *</label><input type="text" id="edit-codigo" required placeholder="Ex: PIZZA10" style="text-transform:uppercase"></div>
+        <div class="form-row">
+          <div class="form-group"><label>Tipo</label>
+            <select id="edit-tipo">
+              <option value="percentual">Percentual (%)</option>
+              <option value="fixo">Valor Fixo (R$)</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Valor *</label><input type="number" id="edit-valor" step="0.01" min="0" required></div>
+        </div>
+        <div class="form-group"><label>Aplicar a tamanho específico (opcional)</label>
+          <select id="edit-tamanho"><option value="">Todos os tamanhos</option></select>
+        </div>
+        <div class="form-group" style="display:flex;align-items:center"><label><input type="checkbox" id="edit-ativo" checked> Ativo</label></div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">Salvar</button>
+          <button type="button" class="btn" onclick="fecharModal('modal-cupom')">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="admin.js"></script>
+  <script>
+    var editandoId = null;
+    var tamanhosCache = [];
+
+    function carregarCupons() {
+      fetch('/api/cupons').then(r => r.json()).then(data => {
+        var container = document.getElementById('cupons-list');
+        if (data.length === 0) { container.innerHTML = '<div class="empty-state"><p>Nenhum cupom cadastrado.</p></div>'; return; }
+        var html = '';
+        data.forEach(function(c) {
+          var tipoLabel = c.tipo === 'percentual' ? c.valor + '%' : 'R$ ' + Number(c.valor).toFixed(2).replace('.',',');
+          var tamanhoLabel = c.tamanho_id ? (tamanhosCache.find(function(t) { return t.id === c.tamanho_id; }) || {}).nome || 'Tamanho específico' : 'Todos os tamanhos';
+          html += '<div class="cupom-card">' +
+            '<div><strong>' + c.codigo + '</strong> — <span class="tag ' + (c.tipo === 'percentual' ? 'tag-azul' : 'tag-verde') + '">' + tipoLabel + '</span> <small style="color:#999">| ' + tamanhoLabel + '</small> <span class="tag ' + (c.ativo ? 'tag-verde' : 'tag-vermelha') + '">' + (c.ativo ? 'Ativo' : 'Inativo') + '</span></div>' +
+            '<div class="cupom-actions">' +
+              '<button class="btn btn-sm btn-primary" onclick="editarCupom(' + c.id + ')">✏️</button>' +
+              '<button class="btn btn-sm btn-danger" onclick="excluirCupom(' + c.id + ')">🗑️</button>' +
+            '</div></div>';
+        });
+        container.innerHTML = html;
+      });
+    }
+
+    function carregarTamanhos() {
+      fetch('/api/pizza/tamanhos').then(r => r.json()).then(function(data) {
+        tamanhosCache = data;
+        var sel = document.getElementById('edit-tamanho');
+        sel.innerHTML = '<option value="">Todos os tamanhos</option>';
+        data.forEach(function(t) {
+          sel.innerHTML += '<option value="' + t.id + '">' + t.nome + ' - R$ ' + t.preco.toFixed(2).replace('.',',') + '</option>';
+        });
+      });
+    }
+
+    function abrirModal() {
+      editandoId = null;
+      document.getElementById('edit-id').value = '';
+      document.getElementById('edit-codigo').value = '';
+      document.getElementById('edit-tipo').value = 'percentual';
+      document.getElementById('edit-valor').value = '';
+      document.getElementById('edit-tamanho').value = '';
+      document.getElementById('edit-ativo').checked = true;
+      document.getElementById('modal-titulo').textContent = 'Novo Cupom';
+      if (tamanhosCache.length === 0) carregarTamanhos();
+      document.getElementById('modal-cupom').style.display = 'flex';
+    }
+
+    function editarCupom(id) {
+      fetch('/api/cupons').then(r => r.json()).then(function(lista) {
+        var c = lista.find(function(x) { return x.id === id; });
+        if (!c) return;
+        editandoId = c.id;
+        document.getElementById('edit-id').value = c.id;
+        document.getElementById('edit-codigo').value = c.codigo;
+        document.getElementById('edit-tipo').value = c.tipo;
+        document.getElementById('edit-valor').value = c.valor;
+        document.getElementById('edit-tamanho').value = c.tamanho_id || '';
+        document.getElementById('edit-ativo').checked = c.ativo === 1;
+        document.getElementById('modal-titulo').textContent = 'Editar Cupom';
+        if (tamanhosCache.length === 0) carregarTamanhos();
+        document.getElementById('modal-cupom').style.display = 'flex';
+      });
+    }
+
+    function salvarCupom() {
+      var data = {
+        codigo: document.getElementById('edit-codigo').value.trim(),
+        tipo: document.getElementById('edit-tipo').value,
+        valor: parseFloat(document.getElementById('edit-valor').value.replace(',','.')) || 0,
+        tamanho_id: document.getElementById('edit-tamanho').value || null,
+        ativo: document.getElementById('edit-ativo').checked ? 1 : 0
+      };
+      if (!data.codigo) { alert('Digite o código do cupom'); return; }
+      var id = document.getElementById('edit-id').value;
+      var url = id ? '/api/cupons/' + id : '/api/cupons';
+      var method = id ? 'PUT' : 'POST';
+      fetch(url, { method: method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
+        .then(function(r) { return r.json(); })
+        .then(function(resp) {
+          if (resp.erro) { alert(resp.erro); return; }
+          fecharModal('modal-cupom'); carregarCupons();
+        });
+    }
+
+    function excluirCupom(id) {
+      if (!confirm('Excluir este cupom?')) return;
+      fetch('/api/cupons/' + id, { method: 'DELETE' }).then(function() { carregarCupons(); });
+    }
+
+    function fecharModal(id) { document.getElementById(id).style.display = 'none'; }
+    carregarCupons();
+    carregarTamanhos();
+  </script>
+</body>
+</html>

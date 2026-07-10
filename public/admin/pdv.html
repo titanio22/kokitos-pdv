@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PDV - Kokito's Pizzaria</title>
+  <link rel="stylesheet" href="../style.css">
+  <style>
+    * { -webkit-tap-highlight-color: transparent; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; background: #0d1117; color: #e6edf3; margin: 0; padding: 0; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); min-height: 100vh; min-height: 100dvh; }
+    .pdv-header { background: linear-gradient(135deg, #161b22 0%, #0d1117 100%); padding: 16px 20px; padding-top: calc(16px + env(safe-area-inset-top, 0px)); display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #30363d; position: sticky; top: 0; z-index: 100; gap: 12px; }
+    .pdv-header h1 { font-size: 1.2rem; margin: 0; display: flex; align-items: center; gap: 8px; font-weight: 700; letter-spacing: -0.3px; }
+    .pdv-header h1 span { color: #f85149; }
+    .pdv-stats { display: flex; gap: 6px; font-size: 0.78rem; flex-wrap: wrap; }
+    .pdv-stats div { background: #21262d; padding: 5px 12px; border-radius: 6px; border: 1px solid #30363d; white-space: nowrap; }
+    .pdv-stats .num { font-weight: 700; font-size: 1rem; color: #f85149; margin-left: 4px; }
+
+    .pdv-filtros { display: flex; gap: 6px; padding: 10px 16px; padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px)); background: #161b22; border-bottom: 1px solid #30363d; flex-wrap: wrap; align-items: center; position: sticky; top: 0; z-index: 99; }
+    .pdv-filtros button { padding: 7px 14px; border: 1px solid #30363d; border-radius: 6px; background: transparent; color: #8b949e; cursor: pointer; font-size: 0.78rem; font-weight: 500; transition: all 0.2s; min-height: 36px; display: inline-flex; align-items: center; gap: 4px; }
+    .pdv-filtros button:active { transform: scale(0.96); }
+    .pdv-filtros button.ativo { background: #f85149; border-color: #f85149; color: #fff; }
+    .pdv-filtros .btn-limpar-cancelados { border-color: #484f58; color: #8b949e; font-size: 0.7rem; }
+    .pdv-filtros .btn-limpar-cancelados:active { border-color: #f85149; color: #f85149; }
+    .pdv-filtros .spacer { flex: 1; min-width: 8px; }
+    .pdv-filtros .info-som { color: #8b949e; font-size: 0.75rem; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; padding: 6px; border-radius: 6px; min-height: 36px; }
+    .pdv-filtros .info-som:active { background: #21262d; }
+
+    .pdv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; padding: 16px; padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px)); }
+
+    .pdv-card { background: #161b22; border-radius: 12px; padding: 16px; border: 1px solid #30363d; border-left: 4px solid #30363d; position: relative; transition: all 0.25s ease; }
+    .pdv-card:active { transform: scale(0.99); }
+    .pdv-card.novo { border-left-color: #f85149; animation: pdv-pulse 2.5s infinite; }
+    .pdv-card.preparando { border-left-color: #d29922; }
+    .pdv-card.saiu_entrega { border-left-color: #58a6ff; }
+    .pdv-card.entregue { border-left-color: #3fb950; opacity: 0.55; }
+    .pdv-card.cancelado { border-left-color: #484f58; opacity: 0.4; }
+
+    @keyframes pdv-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(248,81,73,0.3); } 50% { box-shadow: 0 0 0 8px rgba(248,81,73,0); } }
+
+    .pdv-card-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; gap: 8px; }
+    .pdv-card-numero { font-size: 1.3rem; font-weight: 700; letter-spacing: -0.5px; color: #f0f6fc; }
+    .pdv-card-hora { font-size: 0.72rem; color: #8b949e; margin-top: 2px; }
+    .pdv-card-status { display: inline-block; padding: 3px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; border: 1px solid transparent; }
+    .pdv-status-novo { background: rgba(248,81,73,0.15); color: #f85149; border-color: rgba(248,81,73,0.3); }
+    .pdv-status-preparando { background: rgba(210,153,34,0.15); color: #d29922; border-color: rgba(210,153,34,0.3); }
+    .pdv-status-saiu_entrega { background: rgba(88,166,255,0.15); color: #58a6ff; border-color: rgba(88,166,255,0.3); }
+    .pdv-status-entregue { background: rgba(63,185,80,0.15); color: #3fb950; border-color: rgba(63,185,80,0.3); }
+    .pdv-status-cancelado { background: rgba(72,79,88,0.2); color: #8b949e; border-color: rgba(72,79,88,0.2); }
+
+    .pdv-card-cliente { margin-bottom: 10px; }
+    .pdv-card-cliente .nome { font-size: 1rem; font-weight: 600; color: #f0f6fc; }
+    .pdv-card-cliente .info { font-size: 0.78rem; color: #8b949e; margin-top: 3px; line-height: 1.4; }
+
+    .pdv-card-itens { margin-bottom: 10px; border-radius: 8px; background: #0d1117; overflow: hidden; }
+    .pdv-card-itens table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    .pdv-card-itens td { padding: 5px 10px; border-bottom: 1px solid #21262d; }
+    .pdv-card-itens tr:last-child td { border-bottom: none; }
+    .pdv-card-itens .qtd { color: #f85149; font-weight: 700; width: 32px; text-align: center; font-size: 0.8rem; }
+    .pdv-card-itens .nome-item { color: #e6edf3; }
+    .pdv-card-itens .preco-item { text-align: right; color: #8b949e; font-variant-numeric: tabular-nums; }
+
+    .pdv-card-total { font-size: 1.15rem; font-weight: 700; text-align: right; color: #3fb950; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+    .pdv-card-total small { font-size: 0.72rem; color: #8b949e; font-weight: 400; }
+    .pdv-card-pagamento { font-size: 0.78rem; color: #8b949e; padding: 6px 0 4px 0; border-top: 1px solid #21262d; margin-top: 2px; line-height: 1.5; }
+
+    .pdv-card-obs { background: rgba(210,153,34,0.08); border: 1px solid rgba(210,153,34,0.15); border-radius: 6px; padding: 7px 10px; font-size: 0.78rem; color: #d29922; margin-bottom: 10px; }
+
+    .pdv-card-acoes { display: flex; gap: 6px; flex-wrap: wrap; }
+    .pdv-card-acoes button { flex: 1; min-width: 70px; padding: 10px 8px; border: none; border-radius: 8px; cursor: pointer; font-size: 0.75rem; font-weight: 600; transition: all 0.2s; min-height: 42px; display: inline-flex; align-items: center; justify-content: center; gap: 4px; letter-spacing: 0.2px; }
+    .pdv-card-acoes button:active { transform: scale(0.96); }
+    .btn-aceitar { background: #238636; color: #fff; }
+    .btn-aceitar:hover { background: #2ea043; }
+    .btn-preparar { background: #9e6a03; color: #fff; }
+    .btn-preparar:hover { background: #bb8009; }
+    .btn-entregar { background: #1f6feb; color: #fff; }
+    .btn-entregar:hover { background: #388bfd; }
+    .btn-finalizar { background: #238636; color: #fff; }
+    .btn-finalizar:hover { background: #2ea043; }
+    .btn-cancelar { background: #da3633; color: #fff; }
+    .btn-cancelar:hover { background: #f85149; }
+    .btn-imprimir { background: #21262d; color: #e6edf3; border: 1px solid #30363d; }
+    .btn-imprimir:hover { background: #30363d; }
+
+    .pdv-empty { grid-column: 1 / -1; text-align: center; padding: 60px 20px; color: #484f58; }
+    .pdv-empty p { font-size: 1.1rem; margin-top: 10px; color: #8b949e; }
+
+    .toast { position: fixed; top: calc(20px + env(safe-area-inset-top, 0px)); right: 20px; background: #238636; color: #fff; padding: 14px 22px; border-radius: 8px; font-weight: 600; font-size: 0.88rem; box-shadow: 0 8px 24px rgba(0,0,0,0.4); z-index: 9999; display: none; animation: pdv-slideIn 0.3s ease; border: 1px solid rgba(255,255,255,0.1); }
+    @keyframes pdv-slideIn { from { transform: translateX(120px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+    .config-rapida { position: fixed; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); right: 20px; z-index: 99; }
+    .config-rapida button { background: #21262d; color: #e6edf3; border: 1px solid #30363d; padding: 10px 18px; border-radius: 8px; cursor: pointer; font-size: 0.78rem; font-weight: 500; min-height: 42px; transition: all 0.2s; }
+    .config-rapida button:active { background: #30363d; }
+
+    .impressao-preview { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 9998; }
+    .impressao-preview iframe { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(90%, 800px); height: min(90%, 800px); border: none; border-radius: 12px; background: #fff; box-shadow: 0 16px 48px rgba(0,0,0,0.5); }
+
+    .pdv-card.entregue .pdv-card-itens,
+    .pdv-card.entregue .pdv-card-obs,
+    .pdv-card.entregue .pdv-card-acoes button:not(.btn-imprimir),
+    .pdv-card.cancelado .pdv-card-itens,
+    .pdv-card.cancelado .pdv-card-obs,
+    .pdv-card.cancelado .pdv-card-acoes button:not(.btn-imprimir) { display: none; }
+
+    @media (max-width: 639px) {
+      .pdv-header { flex-direction: column; text-align: center; padding: 12px 12px; padding-top: calc(12px + env(safe-area-inset-top, 0px)); }
+      .pdv-header h1 { font-size: 1rem; }
+      .pdv-stats { gap: 4px; justify-content: center; }
+      .pdv-stats div { padding: 3px 8px; font-size: 0.7rem; }
+      .pdv-stats .num { font-size: 0.85rem; }
+      .pdv-filtros { padding: 8px 10px; gap: 4px; }
+      .pdv-filtros button { padding: 5px 10px; font-size: 0.7rem; min-height: 32px; }
+      .pdv-grid { grid-template-columns: 1fr; padding: 10px; gap: 10px; padding-bottom: calc(70px + env(safe-area-inset-bottom, 0px)); }
+      .pdv-card { padding: 12px; }
+      .pdv-card-numero { font-size: 1.1rem; }
+      .pdv-card-itens table { font-size: 0.78rem; }
+      .pdv-card-itens td { padding: 4px 8px; }
+      .pdv-card-acoes button { min-height: 38px; font-size: 0.7rem; min-width: 60px; padding: 8px 6px; }
+      .toast { left: 16px; right: 16px; top: calc(12px + env(safe-area-inset-top, 0px)); font-size: 0.82rem; }
+      .config-rapida { bottom: calc(16px + env(safe-area-inset-bottom, 0px)); right: 16px; }
+      .config-rapida button { padding: 8px 14px; font-size: 0.72rem; min-height: 36px; }
+      .impressao-preview iframe { width: 95%; height: 95%; }
+    }
+
+    @media (min-width: 640px) and (max-width: 1023px) {
+      .pdv-grid { grid-template-columns: repeat(2, 1fr); }
+      .pdv-header { padding: 14px 18px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="pdv-header">
+    <div>
+      <h1>🍕 Kokito's Pizzaria</h1>
+    </div>
+    <div class="pdv-stats">
+      <div>🆕 <span class="num" id="stat-novos">0</span> novos</div>
+      <div>👨‍🍳 <span class="num" id="stat-preparando">0</span> preparando</div>
+      <div>🚚 <span class="num" id="stat-entregando">0</span> saíram</div>
+      <div>📊 <span class="num" id="stat-total">0</span> total</div>
+    </div>
+  </div>
+
+  <div class="pdv-filtros">
+    <button class="ativo" data-filtro="novo" onclick="filtrar('novo', this)">🆕 Novos</button>
+    <button data-filtro="preparando" onclick="filtrar('preparando', this)">👨‍🍳 Preparando</button>
+    <button data-filtro="saiu_entrega" onclick="filtrar('saiu_entrega', this)">🚚 Em Entrega</button>
+    <button data-filtro="entregue" onclick="filtrar('entregue', this)">✅ Entregues</button>
+    <button data-filtro="cancelado" onclick="filtrar('cancelado', this)">❌ Cancelados</button>
+    <button class="btn-limpar-cancelados" onclick="limparPedidos()" title="Remover pedidos cancelados ou entregues">🗑️ Limpar</button>
+    <span class="spacer"></span>
+    <div class="info-som" onclick="toggleSom()">
+      <span id="som-indicador">🔔</span> <span id="som-texto">Som ligado</span>
+    </div>
+    <div class="info-som" onclick="location.href='configuracoes.html'">⚙️</div>
+    <div class="info-som" onclick="location.href='pedidos.html'">📋</div>
+  </div>
+
+  <div class="pdv-grid" id="pdv-grid"></div>
+
+  <div id="toast" class="toast"></div>
+
+  <div id="impressao-preview" class="impressao-preview" onclick="fecharPreviewImpressao(event)">
+    <iframe id="impressao-frame"></iframe>
+  </div>
+
+  <div class="config-rapida">
+    <button onclick="window.open('../admin/pdv.html','_self')">🔄 Reiniciar PDV</button>
+  </div>
+
+  <script>
+    let ultimoPedidoId = 0;
+    let filtroAtual = 'novo';
+    let somAtivo = true;
+    let somTocando = false;
+    let somInterval = null;
+    let audioCtx = null;
+    let todosPedidos = [];
+
+    function tocarBeep() {
+      if (!somTocando || !somAtivo) return;
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.frequency.value = 880;
+        osc.type = 'sine';
+        gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.6);
+        osc.start(audioCtx.currentTime);
+        osc.stop(audioCtx.currentTime + 0.6);
+
+        setTimeout(() => {
+          if (!somTocando || !somAtivo) return;
+          const osc2 = audioCtx.createOscillator();
+          const gain2 = audioCtx.createGain();
+          osc2.connect(gain2);
+          gain2.connect(audioCtx.destination);
+          osc2.frequency.value = 1108;
+          osc2.type = 'sine';
+          gain2.gain.setValueAtTime(0.5, audioCtx.currentTime);
+          gain2.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
+          osc2.start(audioCtx.currentTime);
+          osc2.stop(audioCtx.currentTime + 0.4);
+        }, 200);
+      } catch(e) {}
+    }
+
+    function tocarSom() {
+      if (!somAtivo || somTocando) return;
+      somTocando = true;
+      tocarBeep();
+      somInterval = setInterval(tocarBeep, 1200);
+    }
+
+    function pararSom() {
+      somTocando = false;
+      if (somInterval) { clearInterval(somInterval); somInterval = null; }
+    }
+
+    function mostrarToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.style.display = 'block';
+      setTimeout(() => { t.style.display = 'none'; }, 4000);
+    }
+
+    function toggleSom() {
+      somAtivo = !somAtivo;
+      document.getElementById('som-indicador').textContent = somAtivo ? '🔔' : '🔕';
+      document.getElementById('som-texto').textContent = somAtivo ? 'Som ligado' : 'Som mudo';
+    }
+
+    const statusLabels = { novo: 'Novo', preparando: 'Preparando', saiu_entrega: 'Saiu p/ Entrega', entregue: 'Entregue', cancelado: 'Cancelado' };
+    const statusAcoes = {
+      novo: [{ label: '✅ Aceitar', classe: 'btn-aceitar', prox: 'preparando' }],
+      preparando: [{ label: '🚚 Saiu p/ Entrega', classe: 'btn-entregar', prox: 'saiu_entrega' }],
+      saiu_entrega: [{ label: '✅ Finalizar', classe: 'btn-finalizar', prox: 'entregue' }],
+      entregue: [],
+      cancelado: []
+    };
+
+    function filtrar(filtro, btn) {
+      filtroAtual = filtro;
+      document.querySelectorAll('.pdv-filtros button[data-filtro]').forEach(b => b.classList.remove('ativo'));
+      if (btn) btn.classList.add('ativo');
+      renderizarPedidos();
+    }
+
+    function renderizarPedidos() {
+      const grid = document.getElementById('pdv-grid');
+      let pedidos = todosPedidos;
+      if (filtroAtual !== 'todos') pedidos = pedidos.filter(p => p.status === filtroAtual);
+
+      if (pedidos.length === 0) {
+        grid.innerHTML = '<div class="pdv-empty"><div style="font-size:3rem">📭</div><p>Nenhum pedido encontrado</p></div>';
+        return;
+      }
+
+      grid.innerHTML = pedidos.map(p => {
+        const acoes = statusAcoes[p.status] || [];
+        const temObs = p.cliente_observacao && p.cliente_observacao.trim();
+
+        return `<div class="pdv-card ${p.status} ${p._nova ? 'destaque' : ''}" data-id="${p.id}">
+          <div class="pdv-card-top">
+            <div>
+              <div class="pdv-card-numero">#${p.id}</div>
+              <div class="pdv-card-hora">${p.criado_em}</div>
+            </div>
+            <span class="pdv-card-status pdv-status-${p.status}">${statusLabels[p.status] || p.status}</span>
+          </div>
+          <div class="pdv-card-cliente">
+            <div class="nome">${p.cliente_nome}</div>
+            <div class="info">📞 ${p.cliente_telefone} &nbsp;|&nbsp; 📍 ${p.cliente_endereco}</div>
+          </div>
+          <div class="pdv-card-itens">
+            <table>
+              ${p.itens.map(function(i) {
+                var det = '';
+                if (i.sabores && i.sabores.length > 0) det += '<tr><td></td><td class="nome-item" colspan="2" style="font-size:0.75rem;color:#f39c12">Sabores: ' + i.sabores.map(function(s){return s.sabor_nome}).join(', ') + '</td></tr>';
+                if (i.borda_nome && i.borda_preco > 0) det += '<tr><td></td><td class="nome-item" colspan="2" style="font-size:0.75rem;color:#f39c12">Borda: ' + i.borda_nome + '</td></tr>';
+                return '<tr><td class="qtd">' + i.quantidade + 'x</td><td class="nome-item">' + i.produto_nome + '</td><td class="preco-item">R$' + (i.preco_unitario * i.quantidade).toFixed(2).replace('.',',') + '</td></tr>' + det;
+              }).join('')}
+            </table>
+          </div>
+          <div class="pdv-card-total">
+            Total: R$ ${p.total.toFixed(2).replace('.', ',')}
+            <small>(${p.itens.reduce((a,i) => a + i.quantidade, 0)} itens)</small>
+          </div>
+          <div class="pdv-card-pagamento">${p.pagamento ? '💳 ' + p.pagamento.charAt(0).toUpperCase() + p.pagamento.slice(1) : ''}${p.cartao_tipo ? ' (' + p.cartao_tipo.charAt(0).toUpperCase() + p.cartao_tipo.slice(1) + ')' : ''}${p.troco_para > 0 ? ' | Troco p/ R$ ' + Number(p.troco_para).toFixed(2).replace('.',',') : ''}${p.cupom_codigo ? ' | 🏷️ ' + p.cupom_codigo + ' (-R$' + Number(p.cupom_desconto).toFixed(2).replace('.',',') + ')' : ''}</div>
+          ${temObs ? `<div class="pdv-card-obs">📝 ${p.cliente_observacao}</div>` : ''}
+          <div class="pdv-card-acoes">
+            ${acoes.map(a => `<button class="${a.classe}" onclick="atualizarStatus(${p.id}, '${a.prox}')">${a.label}</button>`).join('')}
+            <button class="btn-imprimir" onclick="imprimirPedido(${p.id})">🖨️ Imprimir</button>
+            ${p.status !== 'cancelado' && p.status !== 'entregue' ? `<button class="btn-cancelar" onclick="atualizarStatus(${p.id}, 'cancelado')">❌ Cancelar</button>` : ''}
+            ${p.status === 'cancelado' ? `<button class="btn-cancelar" onclick="excluirPedido(${p.id})">🗑️ Excluir</button>` : ''}
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    function excluirPedido(id) {
+      if (!confirm(`Excluir pedido #${id} permanentemente?`)) return;
+      fetch('/api/pedidos/' + id, { method: 'DELETE' })
+        .then(function(r) { return r.json(); })
+        .then(function() { mostrarToast('🗑️ Pedido #' + id + ' excluído'); carregarPedidos(); });
+    }
+
+    function limparPedidos() {
+      var tipo = prompt('Limpar pedidos:\n1 - Cancelados\n2 - Entregues\n\nDigite 1 ou 2:');
+      if (tipo === null) return;
+      var status = tipo === '2' ? 'entregue' : 'cancelado';
+      var label = tipo === '2' ? 'entregue(s)' : 'cancelado(s)';
+      var pedidos = todosPedidos.filter(function(p) { return p.status === status; });
+      if (pedidos.length === 0) { mostrarToast('Nenhum pedido ' + label + ' para limpar'); return; }
+      if (!confirm('Excluir permanentemente ' + pedidos.length + ' pedido(s) ' + label + '?')) return;
+      var promises = pedidos.map(function(p) { return fetch('/api/pedidos/' + p.id, { method: 'DELETE' }); });
+      Promise.all(promises).then(function() { mostrarToast('🗑️ ' + pedidos.length + ' pedido(s) ' + label + ' excluído(s)'); carregarPedidos(); });
+    }
+
+    function atualizarStatus(id, status) {
+      fetch(`/api/pedidos/${id}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status })
+      }).then(r => r.json()).then(() => {
+        carregarPedidos();
+        const labels = { preparando: '👨‍🍳 Preparando', saiu_entrega: '🚚 Em entrega', entregue: '✅ Entregue', cancelado: '❌ Cancelado' };
+        mostrarToast(`Pedido #${id}: ${labels[status] || status}`);
+      });
+    }
+
+    function imprimirPedido(id) {
+      if (window.electronPDV) {
+        window.electronPDV.printPedido(`/api/pdv/pedidos/${id}/impressao`);
+      } else {
+        const preview = document.getElementById('impressao-preview');
+        const frame = document.getElementById('impressao-frame');
+        preview.style.display = 'block';
+        frame.src = `/api/pdv/pedidos/${id}/impressao`;
+      }
+    }
+
+    function fecharPreviewImpressao(e) {
+      if (e.target === e.currentTarget) {
+        document.getElementById('impressao-preview').style.display = 'none';
+        document.getElementById('impressao-frame').src = '';
+      }
+    }
+
+    function carregarPedidos() {
+      fetch('/api/pedidos')
+        .then(r => r.json())
+        .then(data => {
+          const novosPedidos = data.filter(p => p.id > ultimoPedidoId && ultimoPedidoId > 0);
+          if (novosPedidos.length > 0) {
+            novosPedidos.forEach(p => p._nova = true);
+            mostrarToast(`🔔 ${novosPedidos.length} novo(s) pedido(s) recebido(s)!`);
+            if (window.electronPDV) {
+              window.electronPDV.notificar('🆕 Novo Pedido!', `${novosPedidos.length} pedido(s) recebido(s) — clique para abrir o PDV`);
+            }
+          }
+
+          data.forEach(p => {
+            const existente = todosPedidos.find(x => x.id === p.id);
+            if (!existente) p._nova = ultimoPedidoId > 0;
+            else p._nova = false;
+          });
+
+          todosPedidos = data;
+          if (data.length > 0) ultimoPedidoId = Math.max(...data.map(p => p.id));
+
+          document.getElementById('stat-novos').textContent = data.filter(p => p.status === 'novo').length;
+          document.getElementById('stat-preparando').textContent = data.filter(p => p.status === 'preparando').length;
+          document.getElementById('stat-entregando').textContent = data.filter(p => p.status === 'saiu_entrega').length;
+          document.getElementById('stat-total').textContent = data.length;
+
+          renderizarPedidos();
+
+          var temNovo = data.some(function(p) { return p.status === 'novo'; });
+          if (temNovo && !somTocando) tocarSom();
+          if (!temNovo && somTocando) pararSom();
+        });
+    }
+
+    carregarPedidos();
+    setInterval(carregarPedidos, 5000);
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'p' || e.key === 'P') {
+        document.querySelector('.pdv-filtros button[data-filtro="todos"]')?.click();
+      }
+      if (e.key === 'n' || e.key === 'N') {
+        document.querySelector('.pdv-filtros button[data-filtro="novo"]')?.click();
+      }
+    });
+  </script>
+</body>
+</html>

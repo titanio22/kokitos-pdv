@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pizzas - Kokito's Pizzaria</title>
+  <link rel="stylesheet" href="../style.css">
+  <style>
+    .categoria-selector { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+    .cat-sel-btn { padding: 10px 18px; border: 2px solid #e0e0e0; border-radius: 8px; background: #fff; cursor: pointer; font-size: 0.85rem; min-height: 44px; -webkit-tap-highlight-color: transparent; }
+    .cat-sel-btn.ativo { background: var(--cor-primaria); color: #fff; border-color: var(--cor-primaria); }
+    .pizza-layout { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
+    @media (max-width: 1024px) { .pizza-layout { grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 768px) { .pizza-layout { grid-template-columns: 1fr; } }
+    .item-list { max-height: 400px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+    .item-list .item-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border-bottom: 1px solid #eee; font-size: 0.85rem; gap: 8px; }
+    .item-list .item-row:active { background: #f0f0f0; }
+    .item-list .item-actions { display: flex; gap: 6px; flex-shrink: 0; align-items: center; }
+    .item-list .item-actions .btn-sm { min-height: 36px; min-width: 36px; padding: 6px 10px; font-size: 0.8rem; display: inline-flex; align-items: center; justify-content: center; }
+    .sem-pizza { text-align: center; padding: 40px 20px; color: #999; }
+    .sem-pizza p { margin-bottom: 15px; }
+    .search-input { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 0.85rem; margin-bottom: 10px; box-sizing:border-box; -webkit-appearance: none; }
+    .search-input:focus { outline: none; border-color: var(--cor-primaria); box-shadow: 0 0 0 3px rgba(231,76,60,0.08); }
+    .item-row.oculto { display: none; }
+    .btn-toggle { background: none; border: none; font-size: 1.1rem; cursor: pointer; padding: 6px; line-height: 1; min-width: 36px; min-height: 36px; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px; -webkit-tap-highlight-color: transparent; }
+    .btn-toggle:active { background: #eee; }
+    .status-label { font-size: 0.7rem; font-weight: 600; padding: 2px 8px; border-radius: 4px; white-space: nowrap; }
+    .status-label.disp { color: #2e7d32; background: #e8f5e9; }
+    .status-label.indisp { color: #c62828; background: #ffebee; }
+    .card-header-btn { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 8px; flex-wrap: wrap; }
+    .card-header-btn h3 { margin-bottom: 0; font-size: 1rem; }
+    @media (max-width: 639px) {
+      .item-list { max-height: 300px; }
+      .item-list .item-row { padding: 8px 8px; font-size: 0.8rem; }
+      .item-list .item-actions { gap: 4px; }
+      .item-list .item-actions .btn-sm { min-height: 32px; min-width: 32px; padding: 4px 8px; font-size: 0.72rem; }
+      .btn-toggle { min-width: 32px; min-height: 32px; padding: 4px; font-size: 1rem; }
+      .card { padding: 16px; }
+      .sem-pizza { padding: 30px 16px; }
+    }
+  </style>
+</head>
+<body class="admin-body">
+  <div id="sidebar"></div>
+  <div class="admin-content">
+    <div class="admin-header">
+      <h1>🍕 Configuração de Pizzas</h1>
+    </div>
+    <div class="categoria-selector" id="categoria-selector"></div>
+    <div id="pizza-config-area">
+      <div class="pizza-layout">
+        <div class="card">
+          <div class="card-header-btn">
+            <h3>📏 Tamanhos</h3>
+            <button class="btn btn-primary btn-sm" onclick="abrirModalTamanho()">+ Novo</button>
+          </div>
+          <input type="text" class="search-input" placeholder="🔍 Pesquisar tamanhos..." oninput="filtrarLista('tamanhos-list', this.value)">
+          <div class="item-list" id="tamanhos-list">
+            <div class="sem-pizza"><p>Nenhum tamanho cadastrado</p></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header-btn">
+            <h3>🧀 Sabores</h3>
+            <button class="btn btn-primary btn-sm" onclick="abrirModalSabor()">+ Novo</button>
+          </div>
+          <input type="text" class="search-input" placeholder="🔍 Pesquisar sabores..." oninput="filtrarLista('sabores-list', this.value)">
+          <div class="item-list" id="sabores-list">
+            <div class="sem-pizza"><p>Nenhum sabor cadastrado</p></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header-btn">
+            <h3>🔄 Bordas Recheadas</h3>
+            <button class="btn btn-primary btn-sm" onclick="abrirModalBorda()">+ Nova</button>
+          </div>
+          <input type="text" class="search-input" placeholder="🔍 Pesquisar bordas..." oninput="filtrarLista('bordas-list', this.value)">
+          <div class="item-list" id="bordas-list">
+            <div class="sem-pizza"><p>Nenhuma borda cadastrada</p></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-tamanho" class="modal" style="display:none">
+    <div class="modal-content">
+      <span class="fechar" onclick="fecharModal('modal-tamanho')">&times;</span>
+      <h2 id="modal-titulo-tamanho">Novo Tamanho</h2>
+      <form onsubmit="event.preventDefault();salvarTamanho()">
+        <input type="hidden" id="edit-tamanho-id">
+        <div class="form-group"><label>Nome *</label><input type="text" id="edit-tamanho-nome" required placeholder="Ex: Pequena, Média, Grande"></div>
+        <div class="form-row">
+          <div class="form-group"><label>Preço * (R$)</label><input type="number" id="edit-tamanho-preco" step="0.01" min="0" required></div>
+          <div class="form-group"><label>Mín. Sabores</label><input type="number" id="edit-tamanho-min" min="0" max="10" value="1"></div>
+          <div class="form-group"><label>Máx. Sabores</label><input type="number" id="edit-tamanho-max" min="1" max="10" value="4"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Ordem</label><input type="number" id="edit-tamanho-ordem" value="0"></div>
+          <div class="form-group" style="display:flex;align-items:center;padding-top:24px"><label><input type="checkbox" id="edit-tamanho-ativo" checked> Ativo</label></div>
+        </div>
+        <div class="form-group">
+          <label>Foto</label>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <input type="file" id="edit-tamanho-foto" accept="image/*" onchange="previewTamanhoFoto(event)" style="flex:1;min-width:140px">
+            <button type="button" class="btn btn-sm btn-danger" onclick="removerTamanhoFoto()" id="btn-remover-foto" style="display:none">🗑️ Remover</button>
+          </div>
+          <br>
+          <img id="preview-tamanho-foto" style="max-width:120px;max-height:80px;display:none;margin-top:6px;border-radius:6px;object-fit:cover">
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-primary" onclick="salvarTamanho()">Salvar</button>
+          <button type="button" class="btn" onclick="fecharModal('modal-tamanho')">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="modal-sabor" class="modal" style="display:none">
+    <div class="modal-content">
+      <span class="fechar" onclick="fecharModal('modal-sabor')">&times;</span>
+      <h2 id="modal-titulo-sabor">Novo Sabor</h2>
+      <form onsubmit="event.preventDefault();salvarSabor()">
+        <input type="hidden" id="edit-sabor-id">
+        <div class="form-group"><label>Nome *</label><input type="text" id="edit-sabor-nome" required placeholder="Ex: Margherita, Calabresa"></div>
+        <div class="form-group"><label>Descrição</label><input type="text" id="edit-sabor-descricao" placeholder="Ingredientes principais"></div>
+        <div class="form-row">
+          <div class="form-group"><label>Preço Adicional (R$)</label><input type="number" id="edit-sabor-preco" step="0.01" min="0" value="0"></div>
+          <div class="form-group"><label>Ordem</label><input type="number" id="edit-sabor-ordem" value="0"></div>
+        </div>
+        <div class="form-group" style="display:flex;align-items:center"><label><input type="checkbox" id="edit-sabor-ativo" checked> Ativo</label></div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-primary" onclick="salvarSabor()">Salvar</button>
+          <button type="button" class="btn" onclick="fecharModal('modal-sabor')">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="modal-borda" class="modal" style="display:none">
+    <div class="modal-content">
+      <span class="fechar" onclick="fecharModal('modal-borda')">&times;</span>
+      <h2 id="modal-titulo-borda">Nova Borda</h2>
+      <form onsubmit="event.preventDefault();salvarBorda();">
+        <input type="hidden" id="edit-borda-id">
+        <div class="form-group"><label>Nome *</label><input type="text" id="edit-borda-nome" required placeholder="Ex: Catupiry, Cheddar"></div>
+        <div class="form-row">
+          <div class="form-group"><label>Preço (R$)</label><input type="number" id="edit-borda-preco" step="0.01" min="0" value="0"></div>
+          <div class="form-group"><label>Ordem</label><input type="number" id="edit-borda-ordem" value="0"></div>
+        </div>
+        <div class="form-group" style="display:flex;align-items:center"><label><input type="checkbox" id="edit-borda-ativo" checked> Ativo</label></div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-primary" onclick="salvarBorda()">Salvar</button>
+          <button type="button" class="btn" onclick="fecharModal('modal-borda')">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+
+  <script src="admin.js"></script>
+  <script>
+    var categoriaSelecionada = null;
+    var pizzaConfigId = null;
+
+    function carregarCategorias() {
+      fetch('/api/categorias').then(function(r) { return r.json(); }).then(function(data) {
+        var sel = document.getElementById('categoria-selector');
+        sel.innerHTML = '';
+        data.forEach(function(c, i) {
+          var btn = document.createElement('button');
+          btn.className = 'cat-sel-btn' + (i === 0 ? ' ativo' : '');
+          btn.textContent = (c.icone || '📋') + ' ' + c.nome;
+          btn.onclick = function() {
+            document.querySelectorAll('.cat-sel-btn').forEach(function(b) { b.classList.remove('ativo'); });
+            btn.classList.add('ativo');
+            selecionarCategoria(c.id);
+          };
+          sel.appendChild(btn);
+        });
+        if (data.length > 0) selecionarCategoria(data[0].id);
+      });
+    }
+
+    function selecionarCategoria(catId) {
+      categoriaSelecionada = catId;
+      fetch('/api/pizza/config/' + catId).then(function(r) { return r.json(); }).then(function(data) {
+        if (data.ativo && data.id) {
+          pizzaConfigId = data.id;
+          document.getElementById('pizza-config-area').style.display = 'block';
+          carregarTamanhos();
+          carregarSabores();
+          carregarBordas();
+        } else {
+          if (confirm('Ativar configuração de pizza para esta categoria?')) {
+            fetch('/api/pizza/config/' + catId, { method: 'POST' })
+              .then(function(r) { return r.json(); })
+              .then(function(cfg) {
+                pizzaConfigId = cfg.id;
+                document.getElementById('pizza-config-area').style.display = 'block';
+                carregarTamanhos();
+                carregarSabores();
+                carregarBordas();
+              });
+          }
+        }
+      });
+    }
+
+    function carregarTamanhos() {
+      if (!categoriaSelecionada) return;
+      fetch('/api/pizza/config/' + categoriaSelecionada + '/tamanhos').then(function(r) { return r.json(); }).then(function(data) {
+        var list = document.getElementById('tamanhos-list');
+        if (data.length === 0) {
+          list.innerHTML = '<div class="sem-pizza"><p>Nenhum tamanho cadastrado</p></div>';
+          return;
+        }
+        list.innerHTML = '';
+        data.forEach(function(t) {
+          var div = document.createElement('div');
+          div.className = 'item-row';
+          var editBtn = document.createElement('button');
+          editBtn.className = 'btn btn-sm btn-primary';
+          editBtn.textContent = '✏️';
+          editBtn.onclick = function() { editarTamanho(t.id, t.nome, t.preco, t.min_sabores, t.max_sabores, t.ordem, t.ativo, t.foto); };
+          var delBtn = document.createElement('button');
+          delBtn.className = 'btn btn-sm btn-danger';
+          delBtn.textContent = '🗑️';
+          delBtn.onclick = function() { excluirTamanho(t.id); };
+          var fotoHtml = t.foto ? '<img src="' + t.foto + '" style="width:36px;height:36px;object-fit:cover;border-radius:6px;vertical-align:middle;margin-right:6px">' : '';
+          div.innerHTML =
+            '<div>' + fotoHtml + '<strong>' + t.nome + '</strong> — R$ ' + t.preco.toFixed(2).replace('.',',') + ' <small>(' + (t.min_sabores || 1) + '-' + t.max_sabores + ' sabores' + (t.ativo ? '' : ', inativo') + ')</small></div>' +
+            '<div class="item-actions"></div>';
+          div.querySelector('.item-actions').appendChild(editBtn);
+          div.querySelector('.item-actions').appendChild(delBtn);
+          list.appendChild(div);
+        });
+      });
+    }
+
+    function carregarSabores() {
+      if (!categoriaSelecionada) return;
+      fetch('/api/pizza/config/' + categoriaSelecionada + '/sabores').then(function(r) { return r.json(); }).then(function(data) {
+        var list = document.getElementById('sabores-list');
+        if (data.length === 0) {
+          list.innerHTML = '<div class="sem-pizza"><p>Nenhum sabor cadastrado</p></div>';
+          return;
+        }
+        list.innerHTML = '';
+        data.forEach(function(s) {
+          var adicional = s.preco_adicional > 0 ? ' +R$' + s.preco_adicional.toFixed(2).replace('.',',') : '';
+          var div = document.createElement('div');
+          div.className = 'item-row';
+          var toggleBtn = document.createElement('button');
+          toggleBtn.className = 'btn btn-sm btn-toggle';
+          toggleBtn.textContent = s.ativo ? '🟢' : '🔴';
+          toggleBtn.title = s.ativo ? 'Clique para indisponível' : 'Clique para disponível';
+          toggleBtn.onclick = function() { toggleSaborAtivo(s.id, s.ativo); };
+          var editBtn = document.createElement('button');
+          editBtn.className = 'btn btn-sm btn-primary';
+          editBtn.textContent = '✏️';
+          editBtn.onclick = function() { editarSabor(s.id, s.nome, s.descricao || '', s.preco_adicional || 0, s.ordem, s.ativo); };
+          var delBtn = document.createElement('button');
+          delBtn.className = 'btn btn-sm btn-danger';
+          delBtn.textContent = '🗑️';
+          delBtn.onclick = function() { excluirSabor(s.id); };
+          div.innerHTML =
+            '<div><strong>' + s.nome + '</strong>' + (adicional ? ' <small>' + adicional + '</small>' : '') + ' <small class="status-label ' + (s.ativo ? 'disp' : 'indisp') + '">' + (s.ativo ? 'Disponível' : 'Indisponível') + '</small><br><small style="color:#999">' + (s.descricao || '') + '</small></div>' +
+            '<div class="item-actions"></div>';
+          div.querySelector('.item-actions').appendChild(toggleBtn);
+          div.querySelector('.item-actions').appendChild(editBtn);
+          div.querySelector('.item-actions').appendChild(delBtn);
+          list.appendChild(div);
+        });
+      });
+    }
+
+    function carregarBordas() {
+      if (!categoriaSelecionada) return;
+      fetch('/api/pizza/config/' + categoriaSelecionada + '/bordas').then(function(r) { return r.json(); }).then(function(data) {
+        var list = document.getElementById('bordas-list');
+        if (data.length === 0) {
+          list.innerHTML = '<div class="sem-pizza"><p>Nenhuma borda cadastrada</p></div>';
+          return;
+        }
+        list.innerHTML = '';
+        data.forEach(function(b) {
+          var div = document.createElement('div');
+          div.className = 'item-row';
+          var toggleBtn = document.createElement('button');
+          toggleBtn.className = 'btn btn-sm btn-toggle';
+          toggleBtn.textContent = b.ativo ? '🟢' : '🔴';
+          toggleBtn.title = b.ativo ? 'Clique para indisponível' : 'Clique para disponível';
+          toggleBtn.onclick = function() { toggleBordaAtivo(b.id, b.ativo); };
+          var editBtn = document.createElement('button');
+          editBtn.className = 'btn btn-sm btn-primary';
+          editBtn.textContent = '✏️';
+          editBtn.onclick = function() { editarBorda(b.id, b.nome, b.preco || 0, b.ordem, b.ativo); };
+          var delBtn = document.createElement('button');
+          delBtn.className = 'btn btn-sm btn-danger';
+          delBtn.textContent = '🗑️';
+          delBtn.onclick = function() { excluirBorda(b.id); };
+          div.innerHTML =
+            '<div><strong>' + b.nome + '</strong>' + (b.preco > 0 ? ' — R$ ' + b.preco.toFixed(2).replace('.',',') : ' <small>grátis</small>') + ' <small class="status-label ' + (b.ativo ? 'disp' : 'indisp') + '">' + (b.ativo ? 'Disponível' : 'Indisponível') + '</small></div>' +
+            '<div class="item-actions"></div>';
+          div.querySelector('.item-actions').appendChild(toggleBtn);
+          div.querySelector('.item-actions').appendChild(editBtn);
+          div.querySelector('.item-actions').appendChild(delBtn);
+          list.appendChild(div);
+        });
+      });
+    }
+
+    function abrirModalTamanho() {
+      document.getElementById('edit-tamanho-id').value = '';
+      document.getElementById('edit-tamanho-nome').value = '';
+      document.getElementById('edit-tamanho-preco').value = '';
+      document.getElementById('edit-tamanho-min').value = 1;
+      document.getElementById('edit-tamanho-max').value = 4;
+      document.getElementById('edit-tamanho-ordem').value = 0;
+      document.getElementById('edit-tamanho-ativo').checked = true;
+      document.getElementById('edit-tamanho-foto').value = '';
+      document.getElementById('preview-tamanho-foto').style.display = 'none';
+      document.getElementById('preview-tamanho-foto').dataset.foto = '';
+      document.getElementById('btn-remover-foto').style.display = 'none';
+      document.getElementById('modal-titulo-tamanho').textContent = 'Novo Tamanho';
+      document.getElementById('modal-tamanho').style.display = 'flex';
+    }
+
+    function editarTamanho(id, nome, preco, minSabores, maxSabores, ordem, ativo, foto) {
+      document.getElementById('edit-tamanho-id').value = id;
+      document.getElementById('edit-tamanho-nome').value = nome;
+      document.getElementById('edit-tamanho-preco').value = preco;
+      document.getElementById('edit-tamanho-min').value = minSabores ?? 1;
+      document.getElementById('edit-tamanho-max').value = maxSabores;
+      document.getElementById('edit-tamanho-ordem').value = ordem;
+      document.getElementById('edit-tamanho-ativo').checked = ativo === 1 || ativo === true;
+      document.getElementById('edit-tamanho-foto').value = '';
+      var preview = document.getElementById('preview-tamanho-foto');
+      var btnRemover = document.getElementById('btn-remover-foto');
+      if (foto) {
+        preview.src = foto;
+        preview.style.display = 'block';
+        preview.dataset.foto = foto;
+        btnRemover.style.display = 'inline-flex';
+      } else {
+        preview.style.display = 'none';
+        preview.dataset.foto = '';
+        btnRemover.style.display = 'none';
+      }
+      document.getElementById('modal-titulo-tamanho').textContent = 'Editar Tamanho';
+      document.getElementById('modal-tamanho').style.display = 'flex';
+    }
+
+    function previewTamanhoFoto(event) {
+      var file = event.target.files[0];
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        var preview = document.getElementById('preview-tamanho-foto');
+        preview.src = e.target.result;
+        preview.style.display = 'block';
+        preview.dataset.foto = e.target.result;
+        document.getElementById('btn-remover-foto').style.display = 'inline-flex';
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function removerTamanhoFoto() {
+      document.getElementById('edit-tamanho-foto').value = '';
+      document.getElementById('preview-tamanho-foto').style.display = 'none';
+      document.getElementById('preview-tamanho-foto').dataset.foto = '';
+      document.getElementById('btn-remover-foto').style.display = 'none';
+    }
+
+    function parseValor(v) { return parseFloat((v||'').replace(',','.')) || 0; }
+
+    function salvarTamanho() {
+      var id = document.getElementById('edit-tamanho-id').value;
+      var preview = document.getElementById('preview-tamanho-foto');
+      var data = {
+        nome: document.getElementById('edit-tamanho-nome').value,
+        preco: parseValor(document.getElementById('edit-tamanho-preco').value),
+        min_sabores: parseInt(document.getElementById('edit-tamanho-min').value) || 1,
+        max_sabores: parseInt(document.getElementById('edit-tamanho-max').value) || 4,
+        ordem: parseInt(document.getElementById('edit-tamanho-ordem').value) || 0,
+        ativo: document.getElementById('edit-tamanho-ativo').checked ? 1 : 0,
+        foto: preview.dataset.foto || ''
+      };
+      var url = id ? '/api/pizza/tamanhos/' + id : '/api/pizza/config/' + categoriaSelecionada + '/tamanhos';
+      var method = id ? 'PUT' : 'POST';
+      fetch(url, { method: method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
+        .then(function(r) { if (!r.ok) return r.text().then(function(t) { throw new Error(t); }); return r.json(); })
+        .then(function() { fecharModal('modal-tamanho'); carregarTamanhos(); })
+        .catch(function(err) { alert('Erro ao salvar: ' + err.message); });
+    }
+
+    function excluirTamanho(id) {
+      if (!confirm('Excluir este tamanho?')) return;
+      fetch('/api/pizza/tamanhos/' + id, { method: 'DELETE' }).then(function() { carregarTamanhos(); });
+    }
+
+    function abrirModalSabor() {
+      document.getElementById('edit-sabor-id').value = '';
+      document.getElementById('edit-sabor-nome').value = '';
+      document.getElementById('edit-sabor-descricao').value = '';
+      document.getElementById('edit-sabor-preco').value = 0;
+      document.getElementById('edit-sabor-ordem').value = 0;
+      document.getElementById('edit-sabor-ativo').checked = true;
+      document.getElementById('modal-titulo-sabor').textContent = 'Novo Sabor';
+      document.getElementById('modal-sabor').style.display = 'flex';
+    }
+
+    function editarSabor(id, nome, descricao, precoAdicional, ordem, ativo) {
+      document.getElementById('edit-sabor-id').value = id;
+      document.getElementById('edit-sabor-nome').value = nome;
+      document.getElementById('edit-sabor-descricao').value = descricao;
+      document.getElementById('edit-sabor-preco').value = precoAdicional;
+      document.getElementById('edit-sabor-ordem').value = ordem;
+      document.getElementById('edit-sabor-ativo').checked = ativo === 1 || ativo === true;
+      document.getElementById('modal-titulo-sabor').textContent = 'Editar Sabor';
+      document.getElementById('modal-sabor').style.display = 'flex';
+    }
+
+    function salvarSabor() {
+      var id = document.getElementById('edit-sabor-id').value;
+      var data = {
+        nome: document.getElementById('edit-sabor-nome').value,
+        descricao: document.getElementById('edit-sabor-descricao').value,
+        preco_adicional: parseValor(document.getElementById('edit-sabor-preco').value),
+        ordem: parseInt(document.getElementById('edit-sabor-ordem').value) || 0,
+        ativo: document.getElementById('edit-sabor-ativo').checked ? 1 : 0
+      };
+      var url = id ? '/api/pizza/sabores/' + id : '/api/pizza/config/' + categoriaSelecionada + '/sabores';
+      var method = id ? 'PUT' : 'POST';
+      fetch(url, { method: method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
+        .then(function(r) { return r.json(); })
+        .then(function() { fecharModal('modal-sabor'); carregarSabores(); })
+        .catch(function(err) { alert('Erro ao salvar: ' + err.message); });
+    }
+
+    function excluirSabor(id) {
+      if (!confirm('Excluir este sabor?')) return;
+      fetch('/api/pizza/sabores/' + id, { method: 'DELETE' }).then(function() { carregarSabores(); });
+    }
+
+    function abrirModalBorda() {
+      document.getElementById('edit-borda-id').value = '';
+      document.getElementById('edit-borda-nome').value = '';
+      document.getElementById('edit-borda-preco').value = 0;
+      document.getElementById('edit-borda-ordem').value = 0;
+      document.getElementById('edit-borda-ativo').checked = true;
+      document.getElementById('modal-titulo-borda').textContent = 'Nova Borda';
+      document.getElementById('modal-borda').style.display = 'flex';
+    }
+
+    function editarBorda(id, nome, preco, ordem, ativo) {
+      document.getElementById('edit-borda-id').value = id;
+      document.getElementById('edit-borda-nome').value = nome;
+      document.getElementById('edit-borda-preco').value = preco;
+      document.getElementById('edit-borda-ordem').value = ordem;
+      document.getElementById('edit-borda-ativo').checked = ativo === 1 || ativo === true;
+      document.getElementById('modal-titulo-borda').textContent = 'Editar Borda';
+      document.getElementById('modal-borda').style.display = 'flex';
+    }
+
+    function salvarBorda() {
+      var id = document.getElementById('edit-borda-id').value;
+      var data = {
+        nome: document.getElementById('edit-borda-nome').value,
+        preco: parseValor(document.getElementById('edit-borda-preco').value),
+        ordem: parseInt(document.getElementById('edit-borda-ordem').value) || 0,
+        ativo: document.getElementById('edit-borda-ativo').checked ? 1 : 0
+      };
+      var url = id ? '/api/pizza/bordas/' + id : '/api/pizza/config/' + categoriaSelecionada + '/bordas';
+      var method = id ? 'PUT' : 'POST';
+      fetch(url, { method: method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
+        .then(function(r) { return r.json(); })
+        .then(function() { fecharModal('modal-borda'); carregarBordas(); })
+        .catch(function(err) { alert('Erro ao salvar: ' + err.message); });
+    }
+
+    function toggleSaborAtivo(id, ativoAtual) {
+      var novoAtivo = ativoAtual ? 0 : 1;
+      fetch('/api/pizza/sabores/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ativo: novoAtivo }) })
+        .then(function(r) { return r.json(); }).then(function() { carregarSabores(); });
+    }
+
+    function toggleBordaAtivo(id, ativoAtual) {
+      var novoAtivo = ativoAtual ? 0 : 1;
+      fetch('/api/pizza/bordas/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ativo: novoAtivo }) })
+        .then(function(r) { return r.json(); }).then(function() { carregarBordas(); });
+    }
+
+    function excluirBorda(id) {
+      if (!confirm('Excluir esta borda?')) return;
+      fetch('/api/pizza/bordas/' + id, { method: 'DELETE' }).then(function() { carregarBordas(); });
+    }
+
+    function fecharModal(id) { document.getElementById(id).style.display = 'none'; }
+
+    function filtrarLista(listId, termo) {
+      var items = document.getElementById(listId).querySelectorAll('.item-row');
+      termo = termo.toLowerCase().trim();
+      items.forEach(function(el) {
+        el.classList.toggle('oculto', termo !== '' && el.textContent.toLowerCase().indexOf(termo) === -1);
+      });
+    }
+
+
+
+    carregarCategorias();
+  </script>
+</body>
+</html>

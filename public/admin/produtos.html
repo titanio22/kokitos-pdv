@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Produtos - Kokito's Pizzaria</title>
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body class="admin-body">
+  <div id="sidebar"></div>
+  <div class="admin-content">
+    <div class="admin-header">
+      <h1>🍽️ Produtos</h1>
+      <button class="btn btn-primary" onclick="abrirModal()">+ Novo Produto</button>
+    </div>
+    <div class="card">
+      <div class="form-group" style="max-width:300px;margin-bottom:15px;">
+        <select id="filtro-categoria" onchange="carregarProdutos()">
+          <option value="">Todas as categorias</option>
+        </select>
+      </div>
+      <table class="tabela" id="tabela-produtos">
+        <thead><tr><th>Nome</th><th>Categoria</th><th>Preço</th><th>Ordem</th><th>Ativo</th><th>Ações</th></tr></thead>
+        <tbody id="produtos-body"></tbody>
+      </table>
+      <div id="empty-produtos" class="empty-state" style="display:none"><p>Nenhum produto cadastrado</p></div>
+    </div>
+  </div>
+
+  <div id="modal-produto" class="modal" style="display:none">
+    <div class="modal-content">
+      <span class="fechar" onclick="fecharModal()">&times;</span>
+      <h2 id="modal-titulo">Novo Produto</h2>
+      <form onsubmit="salvarProduto(event)">
+        <input type="hidden" id="edit-id">
+        <div class="form-group"><label>Nome *</label><input type="text" id="edit-nome" required></div>
+        <div class="form-group"><label>Descrição</label><textarea id="edit-descricao" rows="2"></textarea></div>
+        <div class="form-row">
+          <div class="form-group"><label>Categoria *</label><select id="edit-categoria" required></select></div>
+          <div class="form-group"><label>Preço * (R$)</label><input type="number" id="edit-preco" step="0.01" min="0" required></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Ordem</label><input type="number" id="edit-ordem" value="0"></div>
+          <div class="form-group"><label>URL da Imagem</label><input type="text" id="edit-imagem" placeholder="https://..."></div>
+        </div>
+        <div class="form-group"><label><input type="checkbox" id="edit-ativo" checked> Ativo</label></div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">Salvar</button>
+          <button type="button" class="btn" onclick="fecharModal()">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="admin.js"></script>
+  <script>
+    let categoriasCache = [];
+
+    function carregarCategoriasSelect() {
+      fetch('/api/categorias').then(r => r.json()).then(data => {
+        categoriasCache = data;
+        const selects = ['edit-categoria', 'filtro-categoria'];
+        selects.forEach(id => {
+          const sel = document.getElementById(id);
+          sel.innerHTML = id === 'filtro-categoria' ? '<option value="">Todas as categorias</option>' : '';
+          data.forEach(c => {
+            sel.innerHTML += `<option value="${c.id}">${c.icone || '📋'} ${c.nome}</option>`;
+          });
+        });
+      });
+    }
+
+    function carregarProdutos() {
+      const catId = document.getElementById('filtro-categoria').value;
+      const url = catId ? `/api/produtos?categoria_id=${catId}` : '/api/produtos';
+      fetch(url).then(r => r.json()).then(data => {
+        const tbody = document.getElementById('produtos-body');
+        const empty = document.getElementById('empty-produtos');
+        tbody.innerHTML = '';
+        if (data.length === 0) { empty.style.display = 'block'; return; }
+        empty.style.display = 'none';
+        data.forEach(p => {
+          tbody.innerHTML += `<tr>
+            <td>${p.nome}</td>
+            <td>${p.categoria_nome || '-'}</td>
+            <td>R$ ${p.preco.toFixed(2).replace('.',',')}</td>
+            <td>${p.ordem}</td>
+            <td>${p.ativo ? '✅ Sim' : '❌ Não'}</td>
+            <td>
+              <button class="btn btn-sm btn-primary" onclick="editarProduto(${p.id})">✏️</button>
+              <button class="btn btn-sm btn-danger" onclick="excluirProduto(${p.id})">🗑️</button>
+            </td>
+          </tr>`;
+        });
+      });
+    }
+
+    function abrirModal(produto) {
+      document.getElementById('modal-titulo').textContent = produto ? 'Editar Produto' : 'Novo Produto';
+      document.getElementById('edit-id').value = produto ? produto.id : '';
+      document.getElementById('edit-nome').value = produto ? produto.nome : '';
+      document.getElementById('edit-descricao').value = produto ? (produto.descricao || '') : '';
+      document.getElementById('edit-preco').value = produto ? produto.preco : '';
+      document.getElementById('edit-ordem').value = produto ? (produto.ordem || 0) : 0;
+      document.getElementById('edit-imagem').value = produto ? (produto.imagem || '') : '';
+      document.getElementById('edit-ativo').checked = produto ? !!produto.ativo : true;
+      const sel = document.getElementById('edit-categoria');
+      if (produto) sel.value = produto.categoria_id;
+      document.getElementById('modal-produto').style.display = 'flex';
+    }
+
+    function fecharModal() { document.getElementById('modal-produto').style.display = 'none'; }
+
+    function editarProduto(id) {
+      fetch('/api/produtos/' + id).then(r => r.json()).then(p => abrirModal(p));
+    }
+
+    function salvarProduto(e) {
+      e.preventDefault();
+      const data = {
+        categoria_id: parseInt(document.getElementById('edit-categoria').value),
+        nome: document.getElementById('edit-nome').value,
+        descricao: document.getElementById('edit-descricao').value,
+        preco: parseFloat(document.getElementById('edit-preco').value),
+        ordem: parseInt(document.getElementById('edit-ordem').value) || 0,
+        imagem: document.getElementById('edit-imagem').value,
+        ativo: document.getElementById('edit-ativo').checked ? 1 : 0
+      };
+      const id = document.getElementById('edit-id').value;
+      const url = id ? `/api/produtos/${id}` : '/api/produtos';
+      const method = id ? 'PUT' : 'POST';
+      fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
+        .then(r => r.json()).then(() => { fecharModal(); carregarProdutos(); });
+    }
+
+    function excluirProduto(id) {
+      if (!confirm('Tem certeza que deseja excluir este produto?')) return;
+      fetch(`/api/produtos/${id}`, { method: 'DELETE' }).then(() => carregarProdutos());
+    }
+
+    carregarCategoriasSelect();
+    carregarProdutos();
+  </script>
+</body>
+</html>

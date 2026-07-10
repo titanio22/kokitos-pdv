@@ -24,7 +24,36 @@ router.get('/:id', (req, res) => {
   res.json({ ...pedido, itens });
 });
 
+function verificarFuncionamento(db) {
+  var configs = db.queryAll('SELECT chave, valor FROM configuracoes');
+  var cfg = {};
+  configs.forEach(function(c) { cfg[c.chave] = c.valor; });
+  if (cfg.funcionamento_aberto !== '1') {
+    return { ok: false, msg: 'A loja está fechada para pedidos no momento.' };
+  }
+  var dias = ['domingo', 'segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado'];
+  var hoje = new Date().getDay();
+  var chave = 'funcionamento_' + dias[hoje];
+  var horario = cfg[chave];
+  if (!horario || horario === 'fechado') {
+    return { ok: false, msg: 'A loja está fechada hoje.' };
+  }
+  var partes = horario.split('-');
+  if (partes.length !== 2) return { ok: true };
+  var agora = new Date();
+  var h = String(agora.getHours()).padStart(2, '0');
+  var m = String(agora.getMinutes()).padStart(2, '0');
+  var agoraStr = h + ':' + m;
+  if (agoraStr < partes[0] || agoraStr > partes[1]) {
+    return { ok: false, msg: 'A loja está fechada no momento. Horário: ' + partes[0] + ' às ' + partes[1] + '.' };
+  }
+  return { ok: true };
+}
+
 router.post('/', (req, res) => {
+  var func = verificarFuncionamento(db);
+  if (!func.ok) return res.status(403).json({ erro: func.msg });
+
   const { cliente_id, cliente_nome, cliente_telefone, cliente_endereco, cliente_observacao, pagamento, troco_para, cartao_tipo, ponto_referencia, endereco_confirmado, cupom_codigo, cupom_desconto, itens } = req.body;
   if (!cliente_nome || !cliente_telefone || !cliente_endereco || !itens || !itens.length) {
     return res.status(400).json({ erro: 'Nome, telefone, endereço e itens são obrigatórios' });

@@ -110,6 +110,14 @@ async function initDb() {
     ['recibo_mostrar_preco', '1', 'booleano', 'Recibo: Mostrar preços dos itens'],
     ['recibo_mostrar_endereco', '1', 'booleano', 'Recibo: Mostrar endereço do cliente'],
     ['recibo_mostrar_observacao', '1', 'booleano', 'Recibo: Mostrar observação do pedido'],
+    ['funcionamento_aberto', '1', 'booleano', 'Loja aberta para pedidos'],
+    ['funcionamento_segunda', '18:00-23:00', 'texto', 'Horário Segunda (ex: 18:00-23:00 ou "fechado")'],
+    ['funcionamento_terca', '18:00-23:00', 'texto', 'Horário Terça'],
+    ['funcionamento_quarta', '18:00-23:00', 'texto', 'Horário Quarta'],
+    ['funcionamento_quinta', '18:00-23:00', 'texto', 'Horário Quinta'],
+    ['funcionamento_sexta', '18:00-23:59', 'texto', 'Horário Sexta'],
+    ['funcionamento_sabado', '18:00-23:59', 'texto', 'Horário Sábado'],
+    ['funcionamento_domingo', '18:00-22:00', 'texto', 'Horário Domingo'],
   ];
   for (const [chave, valor, tipo, descricao] of configsPadrao) {
     try { db.run('INSERT OR IGNORE INTO configuracoes (chave, valor, tipo, descricao) VALUES (?, ?, ?, ?)', [chave, valor, tipo, descricao]); } catch(e) {}

@@ -21,6 +21,32 @@
     </div>
 
     <div class="card" style="margin-top:20px">
+      <h2>🕐 Horários de Funcionamento</h2>
+      <p style="margin-bottom:16px;color:#666;font-size:0.85rem">Defina os dias e horários em que a loja aceita pedidos.</p>
+      <div class="form-group">
+        <label>
+          <input type="checkbox" id="cfg-funcionamento-status" style="margin-right:8px" onchange="atualizarDias()">
+          Loja aberta para pedidos
+        </label>
+      </div>
+      <div id="funcionamento-dias">
+        <table style="width:100%;border-collapse:collapse;margin-top:8px">
+          <thead>
+            <tr style="border-bottom:2px solid #eee">
+              <th style="text-align:left;padding:8px 4px;font-size:0.85rem">Dia</th>
+              <th style="text-align:center;padding:8px 4px;font-size:0.85rem">Aberto</th>
+              <th style="text-align:center;padding:8px 4px;font-size:0.85rem">Abertura</th>
+              <th style="text-align:center;padding:8px 4px;font-size:0.85rem">Fechamento</th>
+            </tr>
+          </thead>
+          <tbody id="funcionamento-tbody"></tbody>
+        </table>
+      </div>
+      <button class="btn btn-primary" onclick="salvarFuncionamento()" style="margin-top:16px">💾 Salvar Horários</button>
+      <div id="func-status" style="margin-top:8px;font-size:0.85rem"></div>
+    </div>
+
+    <div class="card" style="margin-top:20px">
       <h2>🖨️ Impressora Térmica</h2>
       <p style="margin-bottom:16px;color:#666;font-size:0.85rem">Configure a impressora não fiscal para impressão automática dos pedidos.</p>
       <div class="form-group">
@@ -54,11 +80,22 @@
 
   <script src="admin.js"></script>
   <script>
+    const diasSemana = [
+      { chave: 'funcionamento_segunda', label: 'Segunda-feira' },
+      { chave: 'funcionamento_terca', label: 'Terça-feira' },
+      { chave: 'funcionamento_quarta', label: 'Quarta-feira' },
+      { chave: 'funcionamento_quinta', label: 'Quinta-feira' },
+      { chave: 'funcionamento_sexta', label: 'Sexta-feira' },
+      { chave: 'funcionamento_sabado', label: 'Sábado' },
+      { chave: 'funcionamento_domingo', label: 'Domingo' },
+    ];
+
     function carregarConfiguracoes() {
       fetch('/api/configuracoes').then(r => r.json()).then(data => {
         const form = document.getElementById('config-form');
         form.innerHTML = '';
         data.forEach(c => {
+          if (c.chave.startsWith('funcionamento_')) return;
           const div = document.createElement('div');
           div.className = 'form-group';
           div.innerHTML = `<label>${c.descricao || c.chave}</label>`;
@@ -88,6 +125,85 @@
           }
           form.appendChild(div);
         });
+
+        const statusCheck = document.getElementById('cfg-funcionamento-status');
+        const funcData = {};
+        data.forEach(c => { if (c.chave.startsWith('funcionamento_')) funcData[c.chave] = c.valor; });
+        const aberto = data.find(c => c.chave === 'funcionamento_aberto');
+        if (aberto) statusCheck.checked = aberto.valor === '1';
+        renderizarHorarios(funcData);
+      });
+    }
+
+    function renderizarHorarios(funcData) {
+      const tbody = document.getElementById('funcionamento-tbody');
+      tbody.innerHTML = '';
+      diasSemana.forEach(d => {
+        const valor = funcData[d.chave] || 'fechado';
+        const partes = valor.split('-');
+        const aberto = valor !== 'fechado' && partes.length === 2;
+        const abertura = aberto ? partes[0] : '18:00';
+        const fechamento = aberto ? partes[1] : '22:00';
+        const tr = document.createElement('tr');
+        tr.style.borderBottom = '1px solid #f0f0f0';
+        tr.innerHTML = `
+          <td style="padding:8px 4px;font-weight:500">${d.label}</td>
+          <td style="text-align:center;padding:8px 4px">
+            <input type="checkbox" class="func-dia-aberto" data-chave="${d.chave}" ${aberto ? 'checked' : ''} onchange="atualizarDias()">
+          </td>
+          <td style="text-align:center;padding:8px 4px">
+            <input type="time" class="func-abertura" data-chave="${d.chave}" value="${abertura}" style="padding:6px;border:2px solid #ddd;border-radius:6px;font-size:0.85rem" ${aberto ? '' : 'disabled'}>
+          </td>
+          <td style="text-align:center;padding:8px 4px">
+            <input type="time" class="func-fechamento" data-chave="${d.chave}" value="${fechamento}" style="padding:6px;border:2px solid #ddd;border-radius:6px;font-size:0.85rem" ${aberto ? '' : 'disabled'}>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function atualizarDias() {
+      const lojaAberta = document.getElementById('cfg-funcionamento-status').checked;
+      document.querySelectorAll('#funcionamento-tbody tr').forEach(tr => {
+        const checkbox = tr.querySelector('.func-dia-aberto');
+        const abertura = tr.querySelector('.func-abertura');
+        const fechamento = tr.querySelector('.func-fechamento');
+        if (!lojaAberta) {
+          checkbox.checked = false;
+          checkbox.disabled = true;
+          abertura.disabled = true;
+          fechamento.disabled = true;
+        } else {
+          checkbox.disabled = false;
+          abertura.disabled = !checkbox.checked;
+          fechamento.disabled = !checkbox.checked;
+        }
+      });
+    }
+
+    function salvarFuncionamento() {
+      const data = {};
+      data['funcionamento_aberto'] = document.getElementById('cfg-funcionamento-status').checked ? '1' : '0';
+      diasSemana.forEach(d => {
+        const aberto = document.querySelector(`.func-dia-aberto[data-chave="${d.chave}"]`).checked;
+        if (aberto) {
+          const abertura = document.querySelector(`.func-abertura[data-chave="${d.chave}"]`).value;
+          const fechamento = document.querySelector(`.func-fechamento[data-chave="${d.chave}"]`).value;
+          data[d.chave] = abertura + '-' + fechamento;
+        } else {
+          data[d.chave] = 'fechado';
+        }
+      });
+      fetch('/api/configuracoes', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      }).then(r => r.json()).then(() => {
+        document.getElementById('func-status').textContent = '✅ Horários salvos com sucesso!';
+        document.getElementById('func-status').style.color = '#2ecc71';
+      }).catch(() => {
+        document.getElementById('func-status').textContent = '❌ Erro ao salvar horários';
+        document.getElementById('func-status').style.color = '#e74c3c';
       });
     }
 
@@ -97,6 +213,7 @@
       let hasChanges = false;
       inputs.forEach(input => {
         const chave = input.dataset.chave;
+        if (!chave || chave.startsWith('funcionamento_')) return;
         if (input.type === 'checkbox') {
           data[chave] = input.checked ? '1' : '0';
         } else {

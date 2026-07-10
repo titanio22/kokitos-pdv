@@ -734,13 +734,17 @@ function repetirPedido(pedidoId) {
 }
 
 function excluirPedidoAnterior(pedidoId) {
-  if (!confirm('Excluir pedido #' + pedidoId + ' permanentemente?')) return;
+  if (!confirm('Cancelar pedido #' + pedidoId + '?')) return;
   rastreioTabForcada = 'anteriores';
-  fetch('/api/pedidos/' + pedidoId, { method: 'DELETE' })
+  fetch('/api/pedidos/' + pedidoId + '/status', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status: 'cancelado' })
+  })
     .then(function(r) { return r.json(); })
     .then(function() {
       buscarPedidosCliente();
-      mostrarToast('🗑️ Pedido #' + pedidoId + ' excluído');
+      mostrarToast('🗑️ Pedido #' + pedidoId + ' cancelado');
     });
 }
 
@@ -750,6 +754,21 @@ function mostrarToast(msg) {
   el.textContent = msg;
   document.body.appendChild(el);
   setTimeout(function() { el.style.opacity = '0'; el.style.transition = 'opacity 0.3s'; setTimeout(function() { el.remove(); }, 300); }, 3000);
+}
+
+function aumentarPizza(index) {
+  if (carrinho[index] && carrinho[index].pizza_info) {
+    carrinho[index].quantidade++;
+    atualizarCarrinho();
+  }
+}
+
+function diminuirPizza(index) {
+  if (carrinho[index] && carrinho[index].pizza_info) {
+    carrinho[index].quantidade--;
+    if (carrinho[index].quantidade <= 0) carrinho.splice(index, 1);
+    atualizarCarrinho();
+  }
 }
 
 function removerDoCarrinho(produtoId, pizzaHash) {
@@ -801,9 +820,9 @@ function atualizarCarrinho() {
           '<p>R$ ' + item.preco_unitario.toFixed(2).replace('.', ',') + '</p>' +
         '</div>' +
         '<div class="carrinho-item-acoes">' +
-          '<button onclick="removerDoCarrinho(' + (item.produto_id || 0) + ',' + index + ')">−</button>' +
+          '<button onclick="' + (item.pizza_info ? 'diminuirPizza(' + index + ')' : 'removerDoCarrinho(' + (item.produto_id || 0) + ',' + index + ')') + '">−</button>' +
           '<span class="qtd">' + item.quantidade + '</span>' +
-          '<button onclick="adicionarAoCarrinho(' + (item.produto_id || 0) + ')">+</button>' +
+          '<button onclick="' + (item.pizza_info ? 'aumentarPizza(' + index + ')' : 'adicionarAoCarrinho(' + (item.produto_id || 0) + ')') + '">+</button>' +
         '</div>';
       container.appendChild(div);
     })(carrinho[k], k);
@@ -880,8 +899,35 @@ function atualizarTotalCheckout() {
   }
 }
 
+function verificarFuncionamento() {
+  var cfg = cardapio.configuracoes;
+  if (cfg.funcionamento_aberto !== '1') {
+    return 'A loja está fechada para pedidos no momento.';
+  }
+  var dias = ['domingo', 'segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado'];
+  var hoje = new Date().getDay();
+  var chave = 'funcionamento_' + dias[hoje];
+  var horario = cfg[chave];
+  if (!horario || horario === 'fechado') {
+    return 'A loja está fechada hoje.';
+  }
+  var partes = horario.split('-');
+  if (partes.length !== 2) return null;
+  var agora = new Date();
+  var h = agora.getHours().toString().padStart(2, '0');
+  var m = agora.getMinutes().toString().padStart(2, '0');
+  var agoraStr = h + ':' + m;
+  if (agoraStr < partes[0] || agoraStr > partes[1]) {
+    return 'A loja está fechada no momento. Horário de funcionamento: ' + partes[0] + ' às ' + partes[1] + '.';
+  }
+  return null;
+}
+
 function enviarPedido(event) {
   event.preventDefault();
+
+  var erroFunc = verificarFuncionamento();
+  if (erroFunc) { alert(erroFunc); return; }
 
   var itensPedido = [];
   for (var i = 0; i < carrinho.length; i++) {

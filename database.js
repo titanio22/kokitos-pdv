@@ -118,6 +118,8 @@ async function initDb() {
     ['funcionamento_sexta', '18:00-23:59', 'texto', 'Horário Sexta'],
     ['funcionamento_sabado', '18:00-23:59', 'texto', 'Horário Sábado'],
     ['funcionamento_domingo', '18:00-22:00', 'texto', 'Horário Domingo'],
+    ['admin_login', 'titanio', 'texto', 'Login do administrador'],
+    ['admin_senha', '31599198', 'texto', 'Senha do administrador'],
   ];
   for (const [chave, valor, tipo, descricao] of configsPadrao) {
     try { db.run('INSERT OR IGNORE INTO configuracoes (chave, valor, tipo, descricao) VALUES (?, ?, ?, ?)', [chave, valor, tipo, descricao]); } catch(e) {}

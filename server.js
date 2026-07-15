@@ -90,6 +90,39 @@ app.put('/api/config/impressora', (req, res) => {
   res.json({ ok: true });
 });
 
+app.post('/api/admin/login', (req, res) => {
+  const { usuario, senha } = req.body;
+  const configs = queryAll('SELECT chave, valor FROM configuracoes WHERE chave IN (\'admin_login\', \'admin_senha\')');
+  const configMap = {};
+  configs.forEach(c => { configMap[c.chave] = c.valor; });
+  const adminLogin = (configMap['admin_login'] || 'titanio').toLowerCase().trim();
+  const adminSenha = configMap['admin_senha'] || '31599198';
+  if (usuario.toLowerCase().trim() === adminLogin && senha === adminSenha) {
+    res.json({ ok: true });
+  } else {
+    res.status(401).json({ ok: false, erro: 'Usuário ou senha incorretos!' });
+  }
+});
+
+app.put('/api/admin/senha', (req, res) => {
+  const { senha_atual, login_novo, senha_nova } = req.body;
+  const configs = queryAll('SELECT chave, valor FROM configuracoes WHERE chave IN (\'admin_login\', \'admin_senha\')');
+  const configMap = {};
+  configs.forEach(c => { configMap[c.chave] = c.valor; });
+  const adminLogin = (configMap['admin_login'] || 'titanio').toLowerCase().trim();
+  const adminSenha = configMap['admin_senha'] || '31599198';
+  if (senha_atual !== adminSenha) {
+    return res.status(401).json({ ok: false, erro: 'Senha atual incorreta!' });
+  }
+  if (login_novo && login_novo.trim()) {
+    runSql("INSERT OR REPLACE INTO configuracoes (chave, valor, tipo, descricao) VALUES ('admin_login', ?, 'texto', 'Login do administrador')", [login_novo.trim()]);
+  }
+  if (senha_nova && senha_nova.trim()) {
+    runSql("INSERT OR REPLACE INTO configuracoes (chave, valor, tipo, descricao) VALUES ('admin_senha', ?, 'texto', 'Senha do administrador')", [senha_nova.trim()]);
+  }
+  res.json({ ok: true });
+});
+
 app.post('/api/pdv/impressao-teste', (req, res) => {
   const id = Date.now().toString();
   impressaoTesteCache[id] = req.body.html;

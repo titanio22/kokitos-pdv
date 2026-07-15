@@ -130,7 +130,7 @@
 <body>
   <div class="pdv-header">
     <div>
-      <h1>🍕 Kokito's Pizzaria</h1>
+      <h1>🍕 Kokito's Pizzaria <span id="pdv-clock" style="font-size:0.85rem;font-weight:400;color:#8b949e;margin-left:10px">00:00:00</span></h1>
     </div>
     <div class="pdv-stats">
       <div>🆕 <span class="num" id="stat-novos">0</span> novos</div>
@@ -150,6 +150,9 @@
     <span class="spacer"></span>
     <div class="info-som" onclick="toggleSom()">
       <span id="som-indicador">🔔</span> <span id="som-texto">Som ligado</span>
+    </div>
+    <div class="info-som" onclick="toggleAutoPrint()">
+      <span id="auto-print-indicador">🖨️</span> <span id="auto-print-texto">Auto Print</span>
     </div>
     <div class="info-som" onclick="location.href='configuracoes.html'">⚙️</div>
     <div class="info-som" onclick="location.href='pedidos.html'">📋</div>
@@ -175,6 +178,7 @@
     let somInterval = null;
     let audioCtx = null;
     let todosPedidos = [];
+    let autoPrintAtivo = localStorage.getItem('pdv_auto_print') === '1';
 
     function tocarBeep() {
       if (!somTocando || !somAtivo) return;
@@ -331,14 +335,18 @@
       });
     }
 
-    function imprimirPedido(id) {
+    function imprimirPedido(id, auto) {
       if (window.electronPDV) {
         window.electronPDV.printPedido(`/api/pdv/pedidos/${id}/impressao`);
       } else {
-        const preview = document.getElementById('impressao-preview');
-        const frame = document.getElementById('impressao-frame');
-        preview.style.display = 'block';
-        frame.src = `/api/pdv/pedidos/${id}/impressao`;
+        var win = window.open('/api/pdv/pedidos/' + id + '/impressao?silent=1', '_blank', 'width=400,height=600,menubar=no,toolbar=no,status=no');
+        if (win) {
+          win.focus();
+          setTimeout(function() { win.print(); }, 1500);
+          if (!auto) {
+            setTimeout(function() { win.close(); }, 10000);
+          }
+        }
       }
     }
 
@@ -349,16 +357,53 @@
       }
     }
 
+    function atualizarRelogio() {
+      const agora = new Date();
+      document.getElementById('pdv-clock').textContent = agora.toLocaleTimeString('pt-BR', { hour12: false });
+    }
+    atualizarRelogio();
+    setInterval(atualizarRelogio, 1000);
+
+    let lojaFechada = false;
+
     function carregarPedidos() {
-      fetch('/api/pedidos')
-        .then(r => r.json())
-        .then(data => {
+      Promise.all([
+        fetch('/api/pedidos').then(r => r.json()),
+        fetch('/api/configuracoes').then(r => r.json())
+      ]).then(([data, configs]) => {
+        const aberto = configs.find(function(c) { return c.chave === 'funcionamento_aberto'; });
+        const lojaAberta = aberto ? aberto.valor === '1' : true;
+
+        if (!lojaAberta) {
+          if (!lojaFechada && todosPedidos.length > 0) {
+            mostrarToast('🔒 Loja fechada — PDV limpo. Pedidos salvos no Admin 📋');
+          }
+          lojaFechada = true;
+          todosPedidos = [];
+          document.getElementById('pdv-grid').innerHTML = '<div class="pdv-empty"><div style="font-size:3rem">🔒</div><p style="font-size:1.2rem;margin-bottom:6px">Loja Fechada</p><p style="font-size:0.85rem;color:#484f58">Os pedidos do dia estão salvos no Admin 📋</p></div>';
+          document.getElementById('stat-novos').textContent = '0';
+          document.getElementById('stat-preparando').textContent = '0';
+          document.getElementById('stat-entregando').textContent = '0';
+          document.getElementById('stat-total').textContent = '0';
+          pararSom();
+          return;
+        }
+
+        if (lojaFechada) {
+          lojaFechada = false;
+          ultimoPedidoId = 0;
+        }
           const novosPedidos = data.filter(p => p.id > ultimoPedidoId && ultimoPedidoId > 0);
           if (novosPedidos.length > 0) {
             novosPedidos.forEach(p => p._nova = true);
             mostrarToast(`🔔 ${novosPedidos.length} novo(s) pedido(s) recebido(s)!`);
             if (window.electronPDV) {
               window.electronPDV.notificar('🆕 Novo Pedido!', `${novosPedidos.length} pedido(s) recebido(s) — clique para abrir o PDV`);
+            }
+            if (autoPrintAtivo) {
+              setTimeout(function() {
+                novosPedidos.forEach(function(p) { imprimirPedido(p.id); });
+              }, 1000);
             }
           }
 
@@ -382,6 +427,20 @@
           if (temNovo && !somTocando) tocarSom();
           if (!temNovo && somTocando) pararSom();
         });
+    }
+
+    function toggleAutoPrint() {
+      autoPrintAtivo = !autoPrintAtivo;
+      localStorage.setItem('pdv_auto_print', autoPrintAtivo ? '1' : '0');
+      document.getElementById('auto-print-indicador').textContent = autoPrintAtivo ? '🖨️' : '🚫';
+      document.getElementById('auto-print-texto').textContent = autoPrintAtivo ? 'Auto' : 'Off';
+    }
+    if (autoPrintAtivo) {
+      document.getElementById('auto-print-indicador').textContent = '🖨️';
+      document.getElementById('auto-print-texto').textContent = 'Auto';
+    } else {
+      document.getElementById('auto-print-indicador').textContent = '🚫';
+      document.getElementById('auto-print-texto').textContent = 'Off';
     }
 
     carregarPedidos();
